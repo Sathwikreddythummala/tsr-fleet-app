@@ -149,7 +149,7 @@ body.sidebar-collapsed .sidebar { transform: translateX(-100%); }
 
 @keyframes growIn { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 
-.sidebar-footer { border-top: 1px solid var(--glass-border); padding-top: 10px; }
+.sidebar-footer { flex: 0 0 auto; overflow: visible; border-top: 1px solid var(--glass-border); padding-top: 10px; }
 .sidebar-footer a { color: var(--danger) !important; }
 .sidebar-footer a i { color: var(--danger) !important; }
 .sidebar-footer a:hover { background: rgba(220, 38, 38, 0.08); }

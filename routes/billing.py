@@ -180,7 +180,7 @@ def _calculate(data):
     sgst = ss.to_float(sgst) if str(sgst or "").strip() else round(sub_total * SGST_RATE, 2)
     cgst = ss.to_float(cgst) if str(cgst or "").strip() else round(sub_total * CGST_RATE, 2)
     tds = ss.to_float(tds) if str(tds or "").strip() else round(sub_total * TDS_RATE, 2)
-    total = round(sub_total + sgst + cgst - tds - challan + tolls, 2)
+    total = round(sub_total + sgst + cgst - tds + challan + tolls, 2)
     paid = ss.to_float(data.get("paid_amount"))
     data.update({
         "sub_total": sub_total, "sgst": sgst, "cgst": cgst, "tds": tds,

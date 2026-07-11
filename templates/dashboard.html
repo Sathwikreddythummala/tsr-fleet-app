@@ -20,10 +20,6 @@
     <div><div class="stat-label">Total Expense</div><div class="stat-value text-danger" id="stExpense">—</div></div>
   </div></div>
   <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
-    <div class="stat-icon"><i class="bi bi-safe2"></i></div>
-    <div><div class="stat-label">Total Balance</div><div class="stat-value" id="stBalance">—</div></div>
-  </div></div>
-  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-calendar-day"></i></div>
     <div><div class="stat-label">Today Expense</div><div class="stat-value" id="stToday">—</div></div>
   </div></div>
@@ -92,7 +88,6 @@ async function loadDashboard() {
     const s = await api("/api/dashboard/summary");
     setText("stIncome", fmtMoney(s.total_income));
     setText("stExpense", fmtMoney(s.total_expense));
-    setText("stBalance", fmtMoney(s.total_balance));
     setText("stToday", fmtMoney(s.today_expense));
     setText("stMonthly", fmtMoney(s.monthly_expense));
     setText("stBilling", fmtMoney(s.total_billing));
