@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Fuel{% endblock %}
+{% block page_title %}Fuel{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Fuel &amp; Diesel Entries</h4><div class="sub">Litres, amounts, kilometre readings and stations</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Fuel Entry</button>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-droplet-half"></i></div>
+    <div><div class="stat-label">Total Litres (filtered)</div><div class="stat-value" id="stLitres">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+    <div><div class="stat-label">Total Amount (filtered)</div><div class="stat-value text-danger" id="stAmount">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-list-check"></i></div>
+    <div><div class="stat-label">Entries</div><div class="stat-value" id="stCount">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="loadFuel()"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="loadFuel()"></div>
+  <div><label class="form-label">Vehicle</label>
+    <select class="form-select" id="fVehicle" onchange="loadFuel()"><option value="">All</option></select></div>
+  <div><label class="form-label">Driver</label>
+    <select class="form-select" id="fDriver" onchange="loadFuel()"><option value="">All</option></select></div>
+  <div><label class="form-label">Fuel Type</label>
+    <select class="form-select" id="fType" onchange="loadFuel()">
+      <option value="">All</option><option>Diesel</option><option>Petrol</option><option>CNG</option></select></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Monthly Fuel Spend</div>
+    <div id="chartMonthly"><div class="spinner-gold"></div></div>
+  </div></div>
+  <div class="col-lg-6"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-truck-front"></i> Vehicle-wise Fuel</div>
+    <div id="chartVehicle"><div class="spinner-gold"></div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>Vehicle</th><th>Driver</th><th>Type</th><th class="text-end">Litres</th>
+        <th class="text-end">Amount</th><th class="text-end">KM</th><th>Station</th><th>Mode</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="fuelBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="fuelModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="fuelModalTitle">Add Fuel Entry</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="fuelForm" class="row g-3">
+        <div class="col-md-4"><label class="form-label">Date *</label>
+          <input type="date" class="form-control" name="entry_date" required></div>
+        <div class="col-md-4"><label class="form-label">Vehicle *</label>
+          <select class="form-select" name="vehicle_number"><option value="">— Select —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Driver</label>
+          <select class="form-select" name="driver_name"><option value="">— None —</option></select></div>
+        <div class="col-md-3"><label class="form-label">Fuel Type</label>
+          <select class="form-select" name="fuel_type">
+            <option>Diesel</option><option>Petrol</option><option>CNG</option></select></div>
+        <div class="col-md-3"><label class="form-label">Litres *</label>
+          <input type="number" step="0.01" class="form-control" name="litres"></div>
+        <div class="col-md-3"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount"></div>
+        <div class="col-md-3"><label class="form-label">Kilometre</label>
+          <input type="number" class="form-control" name="kilometre"></div>
+        <div class="col-md-6"><label class="form-label">Fuel Station</label>
+          <input class="form-control" name="fuel_station"></div>
+        <div class="col-md-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Fuel Card</option><option>Credit</option></select></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveFuel()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let fuelRows = [], editingId = null;
+
+async function loadFuel() {
+  setLoading("fuelBody");
+  const params = new URLSearchParams({
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    vehicle: document.getElementById("fVehicle").value,
+    driver: document.getElementById("fDriver").value,
+    fuel_type: document.getElementById("fType").value,
+  });
+  try {
+    const data = await api(`/api/fuel?${params}`);
+    fuelRows = data.rows;
+    setText("stLitres", fmtNum(data.total_litres) + " L");
+    setText("stAmount", fmtMoney(data.total_amount));
+    setText("stCount", fmtNum(data.rows.length));
+    renderRows("fuelBody", data.rows, f => `<tr>
+      <td>${fmtDate(f.entry_date)}</td>
+      <td class="fw-bold">${esc(f.vehicle_number || "-")}</td>
+      <td>${esc(f.driver_name || "-")}</td>
+      <td><span class="badge-soft gold">${esc(f.fuel_type || "Diesel")}</span></td>
+      <td class="text-end fw-bold">${fmtNum(f.litres)}</td>
+      <td class="text-end fw-bold">${fmtMoney(f.amount)}</td>
+      <td class="text-end">${esc(f.kilometre || "-")}</td>
+      <td>${esc(f.fuel_station || "-")}</td>
+      <td>${esc(f.payment_mode || "-")}</td>
+      ${actionButtons(f.fuel_id)}
+    </tr>`, "No fuel entries match the filters");
+  } catch (e) { toastError(e); }
+}
+
+async function loadCharts() {
+  try {
+    const s = await api("/api/fuel/stats");
+    document.getElementById("chartMonthly").innerHTML = "";
+    new ApexCharts(document.getElementById("chartMonthly"), {
+      chart: { type: "area", height: 260, toolbar: { show: false }, fontFamily: "inherit",
+               animations: { enabled: true, speed: 700 } },
+      series: [{ name: "Amount", data: s.monthly_amount }, { name: "Litres", data: s.monthly_litres }],
+      xaxis: { categories: s.months },
+      colors: ["#D4A017", "#F59E0B"],
+      stroke: { curve: "smooth", width: 3 },
+      fill: { type: "gradient", gradient: { opacityFrom: .35, opacityTo: .05 } },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(212,160,23,.15)" }
+    }).render();
+
+    const vehicles = Object.entries(s.by_vehicle);
+    document.getElementById("chartVehicle").innerHTML = "";
+    new ApexCharts(document.getElementById("chartVehicle"), {
+      chart: { type: "bar", height: 260, toolbar: { show: false }, fontFamily: "inherit" },
+      series: [{ name: "Fuel Amount", data: vehicles.map(v => Math.round(v[1])) }],
+      xaxis: { categories: vehicles.map(v => v[0]) },
+      colors: ["#FFC107"],
+      plotOptions: { bar: { horizontal: true, borderRadius: 5 } },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(212,160,23,.15)" }
+    }).render();
+  } catch (e) { /* charts optional */ }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("fuelModalTitle").textContent = "Add Fuel Entry";
+  const form = document.getElementById("fuelForm");
+  fillForm(form, null);
+  form.entry_date.value = today();
+  openModal("fuelModal");
+}
+
+function editRecord(id) {
+  const f = fuelRows.find(x => x.fuel_id === id);
+  if (!f) return;
+  editingId = id;
+  document.getElementById("fuelModalTitle").textContent = "Edit Fuel Entry";
+  fillForm(document.getElementById("fuelForm"), f);
+  openModal("fuelModal");
+}
+
+async function saveFuel() {
+  const data = formData(document.getElementById("fuelForm"));
+  if (!data.vehicle_number) return toast("Vehicle is required", "error");
+  try {
+    if (editingId) await api(`/api/fuel/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/fuel", { method: "POST", body: data });
+    closeModal("fuelModal");
+    toast(editingId ? "Fuel entry updated" : "Fuel entry added");
+    loadFuel(); loadCharts();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this fuel entry?")) return;
+  try { await api(`/api/fuel/${id}`, { method: "DELETE" }); toast("Deleted"); loadFuel(); loadCharts(); }
+  catch (e) { toastError(e); }
+}
+
+loadFuel();
+loadCharts();
+loadVehicleOptions("fVehicle", document.querySelector('#fuelForm [name="vehicle_number"]'));
+loadDriverOptions("fDriver", document.querySelector('#fuelForm [name="driver_name"]'));
+</script>
+{% endblock %}

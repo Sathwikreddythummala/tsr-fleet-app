@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}GST{% endblock %}
+{% block page_title %}GST{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>GST Purchases &amp; Sales</h4><div class="sub">Input GST from purchases, output GST from billing</div></div>
+  <div class="d-flex gap-2 align-items-center">
+    <input type="month" class="form-control" id="fMonth" style="width:auto" onchange="loadAll()">
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Purchase</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cart"></i></div>
+    <div><div class="stat-label">Input GST (Purchases)</div><div class="stat-value text-success" id="stInput">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div><div class="stat-label">Output GST (Sales)</div><div class="stat-value" id="stOutput">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-percent"></i></div>
+    <div><div class="stat-label">GST Payable</div><div class="stat-value" id="stPayable">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calculator"></i></div>
+    <div><div class="stat-label">Sales Taxable Value</div><div class="stat-value" id="stTaxable">—</div></div>
+  </div></div>
+</div>
+
+<ul class="nav nav-pills mb-3 animate-in">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabPurchases">Purchases</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabSales">Sales (from Billing)</button></li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tabPurchases">
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Date</th><th>Invoice No.</th><th>Company</th><th class="text-end">Amount</th>
+            <th class="text-end">SGST</th><th class="text-end">CGST</th><th class="text-end">Total</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="purchaseBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="tabSales">
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Invoice</th><th>Date</th><th>Month</th><th class="text-end">Bills</th>
+            <th class="text-end">Taxable</th><th class="text-end">SGST</th><th class="text-end">CGST</th><th class="text-end">Total</th>
+          </tr></thead>
+          <tbody id="salesBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="purchaseModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="purchaseModalTitle">Add GST Purchase</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="purchaseForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Invoice Date *</label>
+          <input type="date" class="form-control" name="invoice_date" required></div>
+        <div class="col-6"><label class="form-label">Invoice Number</label>
+          <input class="form-control" name="invoice_number"></div>
+        <div class="col-12"><label class="form-label">Company Name *</label>
+          <input class="form-control" name="company_name"></div>
+        <div class="col-4"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount"></div>
+        <div class="col-4"><label class="form-label">SGST</label>
+          <input type="number" step="0.01" class="form-control" name="sgst" placeholder="auto 6%"></div>
+        <div class="col-4"><label class="form-label">CGST</label>
+          <input type="number" step="0.01" class="form-control" name="cgst" placeholder="auto 6%"></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="savePurchase()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let purchases = [], editingId = null;
+document.getElementById("fMonth").value = thisMonth();
+
+async function loadAll() {
+  const month = document.getElementById("fMonth").value;
+  setLoading("purchaseBody");
+  setLoading("salesBody");
+  try {
+    const [summary, purchaseRows, salesRows] = await Promise.all([
+      api(`/api/gst/summary?month=${month}`),
+      api(`/api/gst/purchases?month=${month}`),
+      api(`/api/gst/sales?month=${month}`),
+    ]);
+    purchases = purchaseRows;
+    setText("stInput", fmtMoney(summary.input_gst));
+    setText("stOutput", fmtMoney(summary.output_gst));
+    setText("stTaxable", fmtMoney(summary.sales_taxable));
+    const payableEl = document.getElementById("stPayable");
+    payableEl.textContent = fmtMoney(Math.abs(summary.gst_payable)) +
+      (summary.gst_payable < 0 ? " credit" : "");
+    payableEl.className = "stat-value " + (summary.gst_payable > 0 ? "text-danger" : "text-success");
+
+    renderRows("purchaseBody", purchaseRows, p => `<tr>
+      <td>${fmtDate(p.invoice_date)}</td>
+      <td class="fw-bold">${esc(p.invoice_number || "-")}</td>
+      <td>${esc(p.company_name || "-")}</td>
+      <td class="text-end">${fmtMoney(p.amount)}</td>
+      <td class="text-end">${fmtMoney(p.sgst)}</td>
+      <td class="text-end">${fmtMoney(p.cgst)}</td>
+      <td class="text-end fw-bold">${fmtMoney(p.total_amount)}</td>
+      ${actionButtons(p.purchase_id)}
+    </tr>`, "No purchases for this month");
+
+    renderRows("salesBody", salesRows, s => `<tr>
+      <td class="fw-bold">${esc(s.invoice_number)}</td>
+      <td>${fmtDate(s.invoice_date)}</td>
+      <td>${esc(s.payment_month || "-")}</td>
+      <td class="text-end">${s.bill_count}</td>
+      <td class="text-end">${fmtMoney(s.taxable)}</td>
+      <td class="text-end">${fmtMoney(s.sgst)}</td>
+      <td class="text-end">${fmtMoney(s.cgst)}</td>
+      <td class="text-end fw-bold">${fmtMoney(s.total)}</td>
+    </tr>`, "No sales bills for this month");
+  } catch (e) { toastError(e); }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("purchaseModalTitle").textContent = "Add GST Purchase";
+  const form = document.getElementById("purchaseForm");
+  fillForm(form, null);
+  form.invoice_date.value = today();
+  openModal("purchaseModal");
+}
+
+function editRecord(id) {
+  const p = purchases.find(x => x.purchase_id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById("purchaseModalTitle").textContent = "Edit Purchase";
+  fillForm(document.getElementById("purchaseForm"), p);
+  openModal("purchaseModal");
+}
+
+async function savePurchase() {
+  const data = formData(document.getElementById("purchaseForm"));
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    if (editingId) await api(`/api/gst/purchases/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/gst/purchases", { method: "POST", body: data });
+    closeModal("purchaseModal");
+    toast(editingId ? "Purchase updated" : "Purchase added");
+    loadAll();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this GST purchase?")) return;
+  try { await api(`/api/gst/purchases/${id}`, { method: "DELETE" }); toast("Deleted"); loadAll(); }
+  catch (e) { toastError(e); }
+}
+
+loadAll();
+</script>
+{% endblock %}

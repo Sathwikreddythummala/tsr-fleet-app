@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Mithi{% endblock %}
+{% block page_title %}Mithi{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Mithi Tracking</h4>
+    <div class="sub">Monthly Mithi on the main amount · main amount stays pending until returned · not EMI</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAddPerson()"><i class="bi bi-plus-lg me-1"></i> Add Person</button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-people"></i></div>
+    <div><div class="stat-label">Active / Closed</div><div class="stat-value" id="stPersons">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="stat-label">Main Amount Pending</div><div class="stat-value text-danger" id="stMain">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-coin"></i></div>
+    <div><div class="stat-label">Total Mithi Collected</div><div class="stat-value text-success" id="stCollected">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+    <div><div class="stat-label">Mithi Pending</div><div class="stat-value text-danger" id="stPending">—</div></div>
+  </div></div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3 animate-in">
+  <ul class="nav nav-pills" id="statusTabs">
+    <li class="nav-item"><button class="nav-link active" data-status="" onclick="setTab(this)">All</button></li>
+    <li class="nav-item"><button class="nav-link" data-status="Active" onclick="setTab(this)">Active</button></li>
+    <li class="nav-item"><button class="nav-link" data-status="Closed" onclick="setTab(this)">Closed</button></li>
+  </ul>
+  <input class="form-control ms-auto" id="fSearch" style="max-width:260px"
+         placeholder="Search name or mobile..." oninput="debouncedLoad()">
+</div>
+
+<div class="row g-3" id="personCards"><div class="spinner-gold"></div></div>
+
+<!-- person modal -->
+<div class="modal fade" id="personModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="personModalTitle">Add Mithi Person</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="personForm" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Person Name *</label>
+          <input class="form-control" name="person_name" required></div>
+        <div class="col-md-3"><label class="form-label">Mobile</label>
+          <input class="form-control" name="mobile_number" maxlength="10"></div>
+        <div class="col-md-3"><label class="form-label">Alternate Mobile</label>
+          <input class="form-control" name="alternate_mobile" maxlength="10"></div>
+        <div class="col-12"><label class="form-label">Address</label>
+          <input class="form-control" name="address"></div>
+        <div class="col-md-6"><label class="form-label">Aadhaar Number</label>
+          <input class="form-control" name="aadhaar_number" maxlength="12"></div>
+        <div class="col-md-6"><label class="form-label">PAN Number</label>
+          <input class="form-control" name="pan_number" style="text-transform:uppercase" maxlength="10"></div>
+        <div class="col-md-4"><label class="form-label">Main Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="main_amount" oninput="previewMithi()"></div>
+        <div class="col-md-4"><label class="form-label">Mithi Rate (₹ per 100/month) *</label>
+          <input type="number" step="0.25" min="0.25" class="form-control" name="mithi_rate"
+                 value="2" placeholder="e.g. 2 or 3" oninput="previewMithi()"></div>
+        <div class="col-md-4"><label class="form-label">Start Date</label>
+          <input type="date" class="form-control" name="start_date"></div>
+        <div class="col-12"><label class="form-label">Notes</label>
+          <input class="form-control" name="notes"></div>
+        <div class="col-12"><div class="glass-card p-3" style="background:rgba(255,213,79,.18)">
+          <strong>Monthly Mithi: <span id="mithiPreview">₹0</span></strong>
+          <small class="text-muted d-block">Main amount × rate ÷ 100, every month until main amount is returned</small>
+        </div></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="savePerson()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- person detail modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="detailTitle">Person</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="detailBody"></div>
+  </div></div>
+</div>
+
+<!-- payment modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Mithi Payment</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="paymentForm" class="row g-3">
+        <input type="hidden" name="mithi_person_id">
+        <div class="col-6"><label class="form-label">Payment Month *</label>
+          <input type="month" class="form-control" name="payment_month"></div>
+        <div class="col-6"><label class="form-label">Payment Date</label>
+          <input type="date" class="form-control" name="payment_date"></div>
+        <div class="col-6"><label class="form-label">Amount (blank = monthly Mithi)</label>
+          <input type="number" step="0.01" class="form-control" name="mithi_amount"></div>
+        <div class="col-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option></select></div>
+        <div class="col-12"><label class="form-label">Reference / Notes</label>
+          <input class="form-control" name="notes"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="savePayment()"><i class="bi bi-check-lg me-1"></i> Save Payment</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let persons = [], editingId = null, currentStatus = "";
+
+function previewMithi() {
+  const form = document.getElementById("personForm");
+  const main = Number(form.main_amount.value) || 0;
+  const rate = Number(form.mithi_rate.value) || 0;
+  setText("mithiPreview", fmtMoney(main * rate / 100));
+}
+
+function setTab(btn) {
+  document.querySelectorAll("#statusTabs .nav-link").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  currentStatus = btn.dataset.status;
+  loadPersons();
+}
+
+async function loadPersons() {
+  const search = document.getElementById("fSearch").value;
+  try {
+    const data = await api(`/api/mithi/persons?status=${currentStatus}&search=${encodeURIComponent(search)}`);
+    persons = data.rows;
+    setText("stPersons", `${data.active_count} / ${data.closed_count}`);
+    setText("stMain", fmtMoney(data.total_main_pending));
+    setText("stCollected", fmtMoney(data.total_collected));
+    setText("stPending", fmtMoney(data.total_mithi_pending));
+
+    const holder = document.getElementById("personCards");
+    if (!data.rows.length) {
+      holder.innerHTML = '<div class="col-12"><div class="glass-card empty-state"><i class="bi bi-coin"></i>No Mithi persons found</div></div>';
+      return;
+    }
+    holder.innerHTML = data.rows.map(p => {
+      const closed = (p.status || "Active") === "Closed";
+      return `<div class="col-md-6 col-xl-4"><div class="glass-card animate-in slide-up h-100">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <div class="fw-bold" style="font-size:15px">${esc(p.person_name)}</div>
+            <small class="text-muted">${esc(p.mobile_number || "")}</small>
+          </div>
+          ${statusBadge(p.status || "Active")}
+        </div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:13px">
+          <span class="text-muted">Main Amount</span>
+          <b class="${closed ? "text-success" : "text-danger"}">${fmtMoney(p.main_amount)}${closed ? " ✓ returned" : " pending"}</b>
+        </div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:13px">
+          <span class="text-muted">Monthly Mithi (₹${esc(p.mithi_rate)})</span>
+          <span class="badge-soft gold">${fmtMoney(p.monthly_mithi_amount)}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:13px">
+          <span class="text-muted">Collected / Pending</span>
+          <span><b class="text-success">${fmtMoney(p.total_paid)}</b> / <b class="text-danger">${fmtMoney(p.mithi_pending)}</b></span>
+        </div>
+        <div class="d-flex justify-content-between mb-3" style="font-size:13px">
+          <span class="text-muted">This Month</span>
+          ${p.current_month_paid ? '<span class="badge-soft success">Paid</span>'
+                                 : '<span class="badge-soft warning">Pending</span>'}
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-eye"></i> View</button>
+          ${closed ? "" : `
+          <button class="btn btn-gold btn-sm admin-only" onclick="openPayment('${p.mithi_person_id}')"><i class="bi bi-cash"></i> Pay Mithi</button>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="editPerson('${p.mithi_person_id}')"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="closePerson('${p.mithi_person_id}')" title="Main amount returned"><i class="bi bi-check2-circle"></i> Close</button>`}
+        </div>
+      </div></div>`;
+    }).join("");
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadPersons, 350);
+
+function openAddPerson() {
+  editingId = null;
+  document.getElementById("personModalTitle").textContent = "Add Mithi Person";
+  fillForm(document.getElementById("personForm"), null);
+  document.querySelector('#personForm [name="start_date"]').value = today();
+  previewMithi();
+  openModal("personModal");
+}
+
+function editPerson(id) {
+  const p = persons.find(x => x.mithi_person_id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById("personModalTitle").textContent = "Edit " + p.person_name;
+  fillForm(document.getElementById("personForm"), p);
+  previewMithi();
+  openModal("personModal");
+}
+
+async function savePerson() {
+  const data = formData(document.getElementById("personForm"));
+  if (!data.person_name) return toast("Name is required", "error");
+  if (!Number(data.main_amount)) return toast("Main amount is required", "error");
+  try {
+    if (editingId) await api(`/api/mithi/persons/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/mithi/persons", { method: "POST", body: data });
+    closeModal("personModal");
+    toast(editingId ? "Person updated" : "Person added");
+    loadPersons();
+  } catch (e) { toastError(e); }
+}
+
+async function closePerson(id) {
+  const p = persons.find(x => x.mithi_person_id === id);
+  if (!confirm(`Mark main amount ${fmtMoney(p ? p.main_amount : 0)} as returned and close ${p ? p.person_name : "person"}?`)) return;
+  try {
+    await api(`/api/mithi/persons/${id}/close`, { method: "POST", body: {} });
+    toast("Mithi person closed");
+    loadPersons();
+  } catch (e) { toastError(e); }
+}
+
+function openPayment(personId) {
+  const form = document.getElementById("paymentForm");
+  fillForm(form, null);
+  form.mithi_person_id.value = personId;
+  form.payment_month.value = thisMonth();
+  form.payment_date.value = today();
+  openModal("paymentModal");
+}
+
+async function savePayment() {
+  const data = formData(document.getElementById("paymentForm"));
+  try {
+    await api("/api/mithi/payments", { method: "POST", body: data });
+    closeModal("paymentModal");
+    toast("Mithi payment added");
+    loadPersons();
+  } catch (e) { toastError(e); }
+}
+
+async function showDetail(id) {
+  openModal("detailModal");
+  const body = document.getElementById("detailBody");
+  body.innerHTML = '<div class="spinner-gold"></div>';
+  try {
+    const data = await api(`/api/mithi/persons/${id}`);
+    const p = data.person;
+    document.getElementById("detailTitle").textContent = p.person_name;
+    body.innerHTML = `
+      <div class="row g-2 mb-3" style="font-size:13.4px">
+        <div class="col-6"><span class="text-muted">Mobile:</span> ${esc(p.mobile_number || "—")}</div>
+        <div class="col-6"><span class="text-muted">Aadhaar:</span> ${esc(p.aadhaar_number || "—")}</div>
+        <div class="col-6"><span class="text-muted">PAN:</span> ${esc(p.pan_number || "—")}</div>
+        <div class="col-6"><span class="text-muted">Start:</span> ${esc(p.start_date || "—")}</div>
+        <div class="col-12"><span class="text-muted">Address:</span> ${esc(p.address || "—")}</div>
+      </div>
+      <div class="admin-only mb-3 d-flex gap-2 flex-wrap">
+        <select class="form-select form-select-sm" id="mDocType" style="width:auto">
+          <option>Aadhaar Card</option><option>PAN Card</option><option>Other Proof</option></select>
+        <input type="file" class="form-control form-control-sm" id="mDocFile" style="width:auto">
+        <button class="btn btn-gold btn-sm" onclick="uploadMithiDoc('${id}')"><i class="bi bi-cloud-arrow-up"></i> Upload</button>
+      </div>
+      <div class="row g-2 mb-3">${data.documents.length ? data.documents.map(d => `
+        <div class="col-md-6"><a class="doc-card text-decoration-none" href="${esc(d.drive_url)}" target="_blank">
+          <i class="bi bi-file-earmark-richtext"></i>
+          <div><div class="fw-bold" style="font-size:13px;color:var(--text)">${esc(d.document_type)}</div>
+          <small class="text-muted">${esc(d.file_name)}</small></div></a></div>`).join("")
+        : '<div class="col-12 text-muted" style="font-size:13px">No documents uploaded</div>'}</div>
+      <div class="section-title"><i class="bi bi-clock-history"></i> Payment History</div>
+      <div class="table-responsive"><table class="table table-premium">
+        <thead><tr><th>Month</th><th>Date</th><th class="text-end">Amount</th><th>Mode</th><th></th></tr></thead>
+        <tbody>${data.payments.length ? data.payments.map(pay => `<tr>
+          <td class="fw-bold">${esc(pay.payment_month)}</td>
+          <td>${fmtDate(pay.payment_date)}</td>
+          <td class="text-end fw-bold">${fmtMoney(pay.mithi_amount)}</td>
+          <td>${esc(pay.payment_mode || "-")}</td>
+          <td><button class="btn-icon-sm danger admin-only" onclick="deletePayment('${pay.mithi_payment_id}','${id}')"><i class="bi bi-trash"></i></button></td>
+        </tr>`).join("") : '<tr><td colspan="5"><div class="empty-state py-3"><i class="bi bi-inbox"></i>No payments yet</div></td></tr>'}</tbody>
+      </table></div>`;
+  } catch (e) { toastError(e); }
+}
+
+async function deletePayment(paymentId, personId) {
+  if (!confirm("Delete this Mithi payment?")) return;
+  try {
+    await api(`/api/mithi/payments/${paymentId}`, { method: "DELETE" });
+    toast("Payment deleted");
+    showDetail(personId);
+    loadPersons();
+  } catch (e) { toastError(e); }
+}
+
+async function uploadMithiDoc(personId) {
+  const file = document.getElementById("mDocFile").files[0];
+  if (!file) return toast("Choose a file first", "error");
+  const fd = new FormData();
+  fd.append("document_type", document.getElementById("mDocType").value);
+  fd.append("file", file);
+  try {
+    await api(`/api/mithi/persons/${personId}/documents`, { method: "POST", body: fd });
+    toast("Document uploaded");
+    showDetail(personId);
+  } catch (e) { toastError(e); }
+}
+
+loadPersons();
+</script>
+{% endblock %}

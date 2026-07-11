@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Vehicles{% endblock %}
+{% block page_title %}Vehicles{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Company Vehicles</h4><div class="sub">Fleet, documents, loans and expiry tracking</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Vehicle</button>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Vehicle number, driver..." oninput="applyFilters()"></div>
+  <div><label class="form-label">Status</label>
+    <select class="form-select" id="fStatus" onchange="applyFilters()">
+      <option value="">All</option><option>Active</option><option>Inactive</option><option>Sold</option>
+    </select></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Vehicle</th><th>Type</th><th>Default Driver</th><th>Status</th>
+        <th>Insurance</th><th>Permit</th><th>Fitness</th><th>Loan</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="vehicleBody"><tr><td colspan="9"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- add/edit modal -->
+<div class="modal fade" id="vehicleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="vehicleModalTitle">Add Vehicle</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="vehicleForm" class="row g-3">
+        <div class="col-md-4"><label class="form-label">Vehicle Number *</label>
+          <input class="form-control" name="vehicle_number" required style="text-transform:uppercase"></div>
+        <div class="col-md-4"><label class="form-label">Vehicle Type</label>
+          <select class="form-select" name="vehicle_type">
+            <option>Truck</option><option>Mini Truck</option><option>Container</option>
+            <option>Tanker</option><option>Car</option><option>Other</option></select></div>
+        <div class="col-md-4"><label class="form-label">Status</label>
+          <select class="form-select" name="vehicle_status">
+            <option>Active</option><option>Inactive</option><option>Sold</option></select></div>
+        <div class="col-md-6"><label class="form-label">Default Driver</label>
+          <select class="form-select" name="default_driver"><option value="">— None —</option></select></div>
+        <div class="col-md-6"><label class="form-label">RC Number</label>
+          <input class="form-control" name="rc_number"></div>
+        <div class="col-md-4"><label class="form-label">RC Expiry</label>
+          <input type="date" class="form-control" name="rc_expiry"></div>
+        <div class="col-md-4"><label class="form-label">Fitness Expiry</label>
+          <input type="date" class="form-control" name="fitness_expiry_date"></div>
+        <div class="col-md-4"><label class="form-label">PUC Expiry</label>
+          <input type="date" class="form-control" name="puc_expiry_date"></div>
+
+        <div class="col-12"><div class="section-title mb-0 mt-2"><i class="bi bi-shield-check"></i> Insurance</div></div>
+        <div class="col-md-4"><label class="form-label">Policy Number</label>
+          <input class="form-control" name="insurance_policy_number"></div>
+        <div class="col-md-4"><label class="form-label">Insurance Company</label>
+          <input class="form-control" name="insurance_company"></div>
+        <div class="col-md-2"><label class="form-label">Start</label>
+          <input type="date" class="form-control" name="insurance_start_date"></div>
+        <div class="col-md-2"><label class="form-label">Expiry</label>
+          <input type="date" class="form-control" name="insurance_expiry_date"></div>
+        <div class="col-md-6"><label class="form-label">Permit Number</label>
+          <input class="form-control" name="permit_number"></div>
+        <div class="col-md-6"><label class="form-label">Permit Expiry</label>
+          <input type="date" class="form-control" name="permit_expiry_date"></div>
+
+        <div class="col-12"><div class="section-title mb-0 mt-2"><i class="bi bi-bank"></i> Loan / EMI</div></div>
+        <div class="col-md-3"><label class="form-label">Loan Available</label>
+          <select class="form-select" name="loan_available"><option>No</option><option>Yes</option></select></div>
+        <div class="col-md-5"><label class="form-label">Bank Name</label>
+          <input class="form-control" name="bank_name"></div>
+        <div class="col-md-4"><label class="form-label">Loan Account No.</label>
+          <input class="form-control" name="loan_account_number"></div>
+        <div class="col-md-3"><label class="form-label">EMI Amount</label>
+          <input type="number" step="0.01" class="form-control" name="emi_amount"></div>
+        <div class="col-md-3"><label class="form-label">EMI Day (1-28)</label>
+          <input type="number" min="1" max="28" class="form-control" name="emi_date"></div>
+        <div class="col-md-3"><label class="form-label">Loan Start</label>
+          <input type="date" class="form-control" name="loan_start_date"></div>
+        <div class="col-md-3"><label class="form-label">Loan End</label>
+          <input type="date" class="form-control" name="loan_end_date"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveVehicle()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let vehicles = [], editingId = null;
+
+function expiryBadge(dateStr) {
+  if (!dateStr) return '<span class="badge-soft muted">—</span>';
+  const days = Math.floor((new Date(dateStr) - new Date()) / 86400000);
+  if (days < 0) return `<span class="badge-soft danger">Expired ${fmtDate(dateStr)}</span>`;
+  if (days <= 30) return `<span class="badge-soft warning">${fmtDate(dateStr)}</span>`;
+  return `<span class="badge-soft success">${fmtDate(dateStr)}</span>`;
+}
+
+async function loadVehicles() {
+  setLoading("vehicleBody");
+  try { vehicles = await api("/api/vehicles"); applyFilters(); }
+  catch (e) { toastError(e); }
+}
+
+function applyFilters() {
+  const q = document.getElementById("fSearch").value.toLowerCase();
+  const status = document.getElementById("fStatus").value;
+  let rows = vehicles;
+  if (q) rows = rows.filter(v => `${v.vehicle_number} ${v.default_driver} ${v.vehicle_type}`.toLowerCase().includes(q));
+  if (status) rows = rows.filter(v => (v.vehicle_status || "Active") === status);
+  renderRows("vehicleBody", rows, v => `<tr>
+    <td><a href="/vehicles/${v.vehicle_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(v.vehicle_number)}</a></td>
+    <td>${esc(v.vehicle_type || "-")}</td>
+    <td>${esc(v.default_driver || "-")}</td>
+    <td>${statusBadge(v.vehicle_status || "Active")}</td>
+    <td>${expiryBadge(v.insurance_expiry_date)}</td>
+    <td>${expiryBadge(v.permit_expiry_date)}</td>
+    <td>${expiryBadge(v.fitness_expiry_date)}</td>
+    <td>${(v.loan_available || "").toLowerCase() === "yes"
+      ? `<span class="badge-soft warning">EMI ${fmtMoney(v.emi_amount)}</span>`
+      : '<span class="badge-soft muted">No Loan</span>'}</td>
+    ${actionButtons(v.vehicle_id,
+      `<a class="btn-icon-sm" href="/vehicles/${v.vehicle_id}" title="Details"><i class="bi bi-eye"></i></a>`)}
+  </tr>`, "No vehicles added yet");
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("vehicleModalTitle").textContent = "Add Vehicle";
+  fillForm(document.getElementById("vehicleForm"), null);
+  openModal("vehicleModal");
+}
+
+function editRecord(id) {
+  const v = vehicles.find(x => x.vehicle_id === id);
+  if (!v) return;
+  editingId = id;
+  document.getElementById("vehicleModalTitle").textContent = "Edit " + v.vehicle_number;
+  fillForm(document.getElementById("vehicleForm"), v);
+  openModal("vehicleModal");
+}
+
+async function saveVehicle() {
+  const data = formData(document.getElementById("vehicleForm"));
+  if (!data.vehicle_number) return toast("Vehicle number is required", "error");
+  try {
+    if (editingId) await api(`/api/vehicles/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/vehicles", { method: "POST", body: data });
+    closeModal("vehicleModal");
+    toast(editingId ? "Vehicle updated" : "Vehicle added");
+    loadVehicles();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  const v = vehicles.find(x => x.vehicle_id === id);
+  if (!confirm(`Delete vehicle ${v ? v.vehicle_number : id}?`)) return;
+  try { await api(`/api/vehicles/${id}`, { method: "DELETE" }); toast("Vehicle deleted"); loadVehicles(); }
+  catch (e) { toastError(e); }
+}
+
+loadVehicles();
+loadDriverOptionsInto();
+async function loadDriverOptionsInto() {
+  try {
+    const drivers = await api("/api/drivers");
+    fillSelect(document.querySelector('#vehicleForm [name="default_driver"]'),
+      drivers.filter(d => (d.status || "Active") === "Active"),
+      { value: d => d.driver_name, label: d => d.driver_name });
+  } catch (e) {}
+}
+</script>
+{% endblock %}

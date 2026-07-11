@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Expenses{% endblock %}
+{% block page_title %}Expenses{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>All Expenses</h4><div class="sub">Vehicle, driver, house and office expenses</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost" onclick="exportFile('excel')"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+    <button class="btn btn-ghost" onclick="exportFile('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Expense</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-list-check"></i></div>
+    <div><div class="stat-label">Entries (filtered)</div><div class="stat-value" id="stCount">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+    <div><div class="stat-label">Total Amount (filtered)</div><div class="stat-value text-danger" id="stTotal">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="reload()"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="reload()"></div>
+  <div><label class="form-label">Vehicle</label>
+    <select class="form-select" id="fVehicle" onchange="reload()"><option value="">All</option></select></div>
+  <div><label class="form-label">Category</label>
+    <select class="form-select" id="fCategory" onchange="reload()"><option value="">All</option>
+      {% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+  <div><label class="form-label">Sub Category</label>
+    <select class="form-select" id="fSub" onchange="reload()"><option value="">All</option>
+      {% for s in house_subcategories %}<option>{{ s }}</option>{% endfor %}</select></div>
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Description, driver..." oninput="debouncedReload()"></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>For</th><th>Vehicle</th><th>Driver</th><th>Category</th>
+        <th>Sub Category</th><th>Description</th><th class="text-end">Amount</th><th>Paid By</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="expenseBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+  <div class="d-flex justify-content-between align-items-center p-3">
+    <small class="text-muted" id="pageInfo"></small>
+    <div class="d-flex gap-2">
+      <button class="btn btn-ghost btn-sm" onclick="changePage(-1)"><i class="bi bi-chevron-left"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="changePage(1)"><i class="bi bi-chevron-right"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="expenseModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="expenseModalTitle">Add Expense</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="expenseForm" class="row g-3">
+        <div class="col-md-4"><label class="form-label">Date *</label>
+          <input type="date" class="form-control" name="expense_date" required></div>
+        <div class="col-md-4"><label class="form-label">For Month</label>
+          <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-md-4"><label class="form-label">Expense For</label>
+          <select class="form-select" name="expense_for" onchange="onExpenseForChange(this.value)">
+            {% for t in expense_types %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Vehicle</label>
+          <select class="form-select" name="vehicle_number"><option value="">— None —</option></select></div>
+        <div class="col-md-6"><label class="form-label">Driver</label>
+          <select class="form-select" name="driver_name"><option value="">— None —</option></select></div>
+        <div class="col-md-6"><label class="form-label">Category *</label>
+          <select class="form-select" name="category" onchange="onCategoryChange(this.value)">
+            {% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+        <div class="col-md-6"><label class="form-label">Sub Category</label>
+          <select class="form-select" name="sub_category"><option value="">— None —</option></select></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+        <div class="col-md-4"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-md-4"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option>
+            <option>Card</option><option>Credit</option></select></div>
+        <div class="col-md-4"><label class="form-label">Paid By</label>
+          <select class="form-select" name="paid_by">
+            <option value="">Company</option><option>TSR</option><option>TRR</option></select></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveExpense()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HOUSE_SUBS = {{ house_subcategories | tojson }};
+let currentRows = [], editingId = null, page = 1, totalRecords = 0;
+const PAGE_SIZE = 25;
+
+function query() {
+  return new URLSearchParams({
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    vehicle: document.getElementById("fVehicle").value,
+    category: document.getElementById("fCategory").value,
+    sub_category: document.getElementById("fSub").value,
+    search: document.getElementById("fSearch").value,
+    page, page_size: PAGE_SIZE,
+  }).toString();
+}
+
+async function loadExpenses() {
+  setLoading("expenseBody");
+  try {
+    const data = await api(`/api/expenses?${query()}`);
+    currentRows = data.rows;
+    totalRecords = data.total;
+    setText("stCount", fmtNum(data.total));
+    setText("stTotal", fmtMoney(data.total_amount));
+    setText("pageInfo", `Page ${page} · ${data.total} entries`);
+    renderRows("expenseBody", data.rows, e => `<tr>
+      <td>${fmtDate(e.expense_date)}</td>
+      <td>${esc(e.expense_for || "-")}</td>
+      <td>${esc(e.vehicle_number || "-")}</td>
+      <td>${esc(e.driver_name || "-")}</td>
+      <td><span class="badge-soft gold">${esc(e.category || "-")}</span></td>
+      <td>${esc(e.sub_category || "-")}</td>
+      <td>${esc(e.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(e.amount)}</td>
+      <td>${e.paid_by ? statusBadge(e.paid_by) : "Company"}</td>
+      ${actionButtons(e.expense_id)}
+    </tr>`, "No expenses match the filters");
+  } catch (e) { toastError(e); }
+}
+
+function reload() { page = 1; loadExpenses(); }
+const debouncedReload = debounce(reload, 350);
+function changePage(dir) {
+  const maxPage = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+  page = Math.min(maxPage, Math.max(1, page + dir));
+  loadExpenses();
+}
+
+function onCategoryChange(cat) {
+  const sub = document.querySelector('#expenseForm [name="sub_category"]');
+  if (cat === "House Expense") {
+    sub.innerHTML = HOUSE_SUBS.map(s => `<option>${s}</option>`).join("");
+  } else {
+    sub.innerHTML = '<option value="">— None —</option>';
+  }
+}
+function onExpenseForChange(val) {
+  if (val === "House Expense") {
+    document.querySelector('#expenseForm [name="category"]').value = "House Expense";
+    onCategoryChange("House Expense");
+  }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("expenseModalTitle").textContent = "Add Expense";
+  const form = document.getElementById("expenseForm");
+  fillForm(form, null);
+  form.expense_date.value = today();
+  form.for_month.value = thisMonth();
+  onCategoryChange(form.category.value);
+  openModal("expenseModal");
+}
+
+function editRecord(id) {
+  const e = currentRows.find(x => x.expense_id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById("expenseModalTitle").textContent = "Edit Expense";
+  const form = document.getElementById("expenseForm");
+  onCategoryChange(e.category);
+  fillForm(form, e);
+  openModal("expenseModal");
+}
+
+async function saveExpense() {
+  const data = formData(document.getElementById("expenseForm"));
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    if (editingId) await api(`/api/expenses/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/expenses", { method: "POST", body: data });
+    closeModal("expenseModal");
+    toast(editingId ? "Expense updated" : "Expense added");
+    loadExpenses();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this expense?")) return;
+  try { await api(`/api/expenses/${id}`, { method: "DELETE" }); toast("Expense deleted"); loadExpenses(); }
+  catch (e) { toastError(e); }
+}
+
+function exportFile(kind) {
+  window.location.href = `/api/expenses/export/${kind}?${query()}`;
+}
+
+loadExpenses();
+loadVehicleOptions("fVehicle", document.querySelector('#expenseForm [name="vehicle_number"]'));
+loadDriverOptions(document.querySelector('#expenseForm [name="driver_name"]'));
+</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Driver Portal{% endblock %}
+{% block page_title %}Driver Portal{% endblock %}
+
+{% block content %}
+<div class="portal-hero animate-in mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="fw-bold mb-1" id="heroName">Welcome</h4>
+      <div style="font-size:13.5px" id="heroMeta">Loading your profile…</div>
+    </div>
+    <i class="bi bi-truck-front-fill" style="font-size:44px;opacity:.6"></i>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Monthly Salary</div><div class="stat-value" id="stSalary">—</div></div>
+  </div></div>
+  <div class="col-6"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-arrow-up-right-circle"></i></div>
+    <div><div class="stat-label">Advance</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+  </div></div>
+  <div class="col-6"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cup-hot"></i></div>
+    <div><div class="stat-label">Meals</div><div class="stat-value" id="stMeals">—</div></div>
+  </div></div>
+  <div class="col-6"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-fuel-pump"></i></div>
+    <div><div class="stat-label">Diesel</div><div class="stat-value" id="stDiesel">—</div></div>
+  </div></div>
+</div>
+
+<div class="d-flex gap-2 align-items-center mb-3">
+  <label class="form-label mb-0 text-muted" style="font-size:12px">MONTH</label>
+  <input type="month" class="form-control" id="fMonth" style="max-width:180px" onchange="loadEntries()">
+  <button class="btn btn-gold portal-btn ms-auto" style="width:auto;padding:10px 20px"
+          onclick="openModal('dieselModal')">
+    <i class="bi bi-plus-lg me-1"></i> Add Diesel
+  </button>
+</div>
+
+<div class="glass-card table-card animate-in mb-4">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-fuel-pump"></i> My Diesel Entries</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Date</th><th>Vehicle</th><th class="text-end">Litres</th><th class="text-end">Amount</th><th class="text-end">KM</th><th>Station</th></tr></thead>
+      <tbody id="dieselBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="glass-card table-card animate-in">
+    <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-arrow-up-right-circle"></i> My Advances</div>
+    <div class="table-responsive">
+      <table class="table table-premium">
+        <thead><tr><th>Month</th><th>Description</th><th class="text-end">Amount</th></tr></thead>
+        <tbody id="advanceBody"></tbody>
+      </table>
+    </div>
+  </div></div>
+  <div class="col-lg-6"><div class="glass-card table-card animate-in">
+    <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-cup-hot"></i> My Meals</div>
+    <div class="table-responsive">
+      <table class="table table-premium">
+        <thead><tr><th>Month</th><th>Description</th><th class="text-end">Amount</th></tr></thead>
+        <tbody id="mealsBody"></tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="dieselModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Diesel Entry</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="dieselForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="entry_date"></div>
+        <div class="col-6"><label class="form-label">Vehicle</label>
+          <input class="form-control" name="vehicle_number" readonly></div>
+        <div class="col-6"><label class="form-label">Litres *</label>
+          <input type="number" step="0.01" class="form-control" name="litres"></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount"></div>
+        <div class="col-6"><label class="form-label">Kilometre</label>
+          <input type="number" class="form-control" name="kilometre"></div>
+        <div class="col-6"><label class="form-label">Fuel Station</label>
+          <input class="form-control" name="fuel_station"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold portal-btn" style="width:auto" onclick="saveDiesel()">
+        <i class="bi bi-check-lg me-1"></i> Save Entry</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("fMonth").value = thisMonth();
+
+async function loadProfile() {
+  try {
+    const data = await api("/api/driver-portal/me");
+    setText("heroName", "Welcome, " + (data.driver.driver_name || "Driver"));
+    setText("heroMeta", `${data.driver.employee_type || "Driver"} · Vehicle: ${data.driver.assigned_vehicle || "Not assigned"}`);
+    setText("stSalary", fmtMoney(data.driver.salary));
+    const form = document.getElementById("dieselForm");
+    form.vehicle_number.value = data.driver.assigned_vehicle || "";
+    form.entry_date.value = today();
+  } catch (e) { toastError(e); }
+}
+
+async function loadEntries() {
+  const month = document.getElementById("fMonth").value;
+  setLoading("dieselBody");
+  try {
+    const data = await api(`/api/driver-portal/entries?month=${month}`);
+    setText("stAdvance", fmtMoney(data.total_advance));
+    setText("stMeals", fmtMoney(data.total_meals));
+    setText("stDiesel", fmtNum(data.total_diesel_litres) + " L · " + fmtMoney(data.total_diesel_amount));
+    renderRows("dieselBody", data.diesel_entries, d => `<tr>
+      <td>${fmtDate(d.entry_date)}</td>
+      <td class="fw-bold">${esc(d.vehicle_number || "-")}</td>
+      <td class="text-end fw-bold">${fmtNum(d.litres)}</td>
+      <td class="text-end">${fmtMoney(d.amount)}</td>
+      <td class="text-end">${esc(d.kilometre || "-")}</td>
+      <td>${esc(d.fuel_station || "-")}</td>
+    </tr>`, "No diesel entries this month");
+    renderRows("advanceBody", data.advance_entries, a => `<tr>
+      <td>${esc(a.for_month)}</td><td>${esc(a.description || "-")}</td>
+      <td class="text-end fw-bold text-danger">${fmtMoney(a.amount)}</td></tr>`, "No advances");
+    renderRows("mealsBody", data.meals_entries, m => `<tr>
+      <td>${esc(m.for_month)}</td><td>${esc(m.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(m.amount)}</td></tr>`, "No meal entries");
+  } catch (e) { toastError(e); }
+}
+
+async function saveDiesel() {
+  const data = formData(document.getElementById("dieselForm"));
+  if (!Number(data.litres) && !Number(data.amount))
+    return toast("Enter litres or amount", "error");
+  try {
+    await api("/api/driver-portal/diesel", { method: "POST", body: data });
+    closeModal("dieselModal");
+    toast("Diesel entry added");
+    loadEntries();
+  } catch (e) { toastError(e); }
+}
+
+loadProfile();
+loadEntries();
+</script>
+{% endblock %}

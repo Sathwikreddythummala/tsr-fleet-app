@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tsr-enterprises",
+      "runtimeExecutable": "C:\\TSR Fleet App\\run_preview.bat",
+      "runtimeArgs": [],
+      "port": 8010
+    }
+  ]
+}

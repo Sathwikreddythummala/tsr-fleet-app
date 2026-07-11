@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}EMI{% endblock %}
+{% block page_title %}EMI &amp; Loans{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>EMI &amp; Loans</h4><div class="sub">Vehicle loans and other EMIs · Mithi is tracked separately</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Other EMI</button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-bank"></i></div>
+    <div><div class="stat-label">Monthly EMI Total</div><div class="stat-value text-danger" id="stMonthly">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-lightning-charge"></i></div>
+    <div><div class="stat-label">Active EMIs</div><div class="stat-value" id="stActive">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-all"></i></div>
+    <div><div class="stat-label">Completed</div><div class="stat-value text-success" id="stCompleted">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+    <div><div class="stat-label">EMI Paid This Month</div><div class="stat-value" id="stPaidMonth">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in mb-4">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-truck-front"></i> Vehicle Loan EMIs</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Vehicle</th><th>Bank</th><th>Loan Account</th><th class="text-end">EMI</th>
+        <th>Next Due</th><th>Loan End</th><th>Status</th>
+      </tr></thead>
+      <tbody id="vehicleEmiBody"><tr><td colspan="7"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-bank"></i> Other EMIs</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Name</th><th>Category</th><th>Lender</th><th class="text-end">EMI</th>
+        <th>Next Due</th><th>Progress</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="otherEmiBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="emiModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="emiModalTitle">Add Other EMI</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="emiForm" class="row g-3">
+        <div class="col-md-6"><label class="form-label">EMI Name *</label>
+          <input class="form-control" name="emi_name" required></div>
+        <div class="col-md-3"><label class="form-label">Category</label>
+          <select class="form-select" name="category">
+            <option>Personal Loan</option><option>Business Loan</option><option>Gold Loan</option>
+            <option>Equipment</option><option>Other</option></select></div>
+        <div class="col-md-3"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Completed</option></select></div>
+        <div class="col-md-6"><label class="form-label">Lender Name</label>
+          <input class="form-control" name="lender_name"></div>
+        <div class="col-md-6"><label class="form-label">Vehicle (optional)</label>
+          <select class="form-select" name="vehicle_number"><option value="">— None —</option></select></div>
+        <div class="col-md-3"><label class="form-label">Total Amount</label>
+          <input type="number" step="0.01" class="form-control" name="total_amount"></div>
+        <div class="col-md-3"><label class="form-label">Down Payment</label>
+          <input type="number" step="0.01" class="form-control" name="down_payment"></div>
+        <div class="col-md-3"><label class="form-label">EMI Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="emi_amount"></div>
+        <div class="col-md-3"><label class="form-label">EMI Day (1-28)</label>
+          <input type="number" min="1" max="28" class="form-control" name="emi_date"></div>
+        <div class="col-md-3"><label class="form-label">Start Date</label>
+          <input type="date" class="form-control" name="start_date"></div>
+        <div class="col-md-3"><label class="form-label">End Date</label>
+          <input type="date" class="form-control" name="end_date"></div>
+        <div class="col-md-3"><label class="form-label">Total Installments</label>
+          <input type="number" class="form-control" name="total_installments"></div>
+        <div class="col-md-3"><label class="form-label">Paid Installments</label>
+          <input type="number" class="form-control" name="paid_installments"></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveEmi()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let otherEmis = [], editingId = null;
+
+function dueBadge(dateStr) {
+  if (!dateStr) return '<span class="badge-soft muted">—</span>';
+  const days = Math.floor((new Date(dateStr) - new Date()) / 86400000);
+  const cls = days <= 3 ? "danger" : days <= 7 ? "warning" : "success";
+  return `<span class="badge-soft ${cls}">${fmtDate(dateStr)}</span>`;
+}
+
+async function loadEmis() {
+  setLoading("vehicleEmiBody");
+  setLoading("otherEmiBody");
+  try {
+    const data = await api("/api/emi");
+    otherEmis = data.other_emis;
+    setText("stMonthly", fmtMoney(data.monthly_total));
+    setText("stActive", data.active_count);
+    setText("stCompleted", data.completed_count);
+    setText("stPaidMonth", fmtMoney(data.emi_paid_this_month));
+
+    renderRows("vehicleEmiBody", data.vehicle_emis, v => `<tr>
+      <td class="fw-bold">${esc(v.vehicle_number)}</td>
+      <td>${esc(v.lender_name || "-")}</td>
+      <td>${esc(v.loan_account_number || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(v.emi_amount)}</td>
+      <td>${dueBadge(v.next_due)}</td>
+      <td>${esc(v.end_date || "-")}</td>
+      <td>${statusBadge(v.status)}</td>
+    </tr>`, "No vehicle loans - manage loans from the Vehicles page");
+
+    renderRows("otherEmiBody", data.other_emis, e => {
+      const total = Number(e.total_installments) || 0;
+      const paid = Number(e.paid_installments) || 0;
+      const pct = total ? Math.min(100, Math.round(paid / total * 100)) : 0;
+      return `<tr>
+        <td class="fw-bold">${esc(e.emi_name)}</td>
+        <td>${esc(e.category || "-")}</td>
+        <td>${esc(e.lender_name || "-")}</td>
+        <td class="text-end fw-bold">${fmtMoney(e.emi_amount)}</td>
+        <td>${dueBadge(e.next_due)}</td>
+        <td style="min-width:120px">
+          <div class="progress progress-gold"><div class="progress-bar" style="width:${pct}%"></div></div>
+          <small class="text-muted">${paid}/${total || "?"} paid</small></td>
+        <td>${statusBadge(e.status || "Active")}</td>
+        ${actionButtons(e.emi_id)}
+      </tr>`;
+    }, "No other EMIs added");
+  } catch (e) { toastError(e); }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("emiModalTitle").textContent = "Add Other EMI";
+  fillForm(document.getElementById("emiForm"), null);
+  openModal("emiModal");
+}
+
+function editRecord(id) {
+  const e = otherEmis.find(x => x.emi_id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById("emiModalTitle").textContent = "Edit " + e.emi_name;
+  fillForm(document.getElementById("emiForm"), e);
+  openModal("emiModal");
+}
+
+async function saveEmi() {
+  const data = formData(document.getElementById("emiForm"));
+  if (!data.emi_name) return toast("EMI name is required", "error");
+  try {
+    if (editingId) await api(`/api/emi/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/emi", { method: "POST", body: data });
+    closeModal("emiModal");
+    toast(editingId ? "EMI updated" : "EMI added");
+    loadEmis();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this EMI?")) return;
+  try { await api(`/api/emi/${id}`, { method: "DELETE" }); toast("EMI deleted"); loadEmis(); }
+  catch (e) { toastError(e); }
+}
+
+loadEmis();
+loadVehicleOptions(document.querySelector('#emiForm [name="vehicle_number"]'));
+</script>
+{% endblock %}

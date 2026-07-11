@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ vehicle.vehicle_number }}{% endblock %}
+{% block page_title %}Vehicle · {{ vehicle.vehicle_number }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h4>{{ vehicle.vehicle_number }}
+      <span class="badge-soft {{ 'success' if (vehicle.vehicle_status or 'Active') == 'Active' else 'muted' }}">{{ vehicle.vehicle_status or 'Active' }}</span>
+    </h4>
+    <div class="sub">{{ vehicle.vehicle_type or 'Vehicle' }} · Driver: {{ vehicle.default_driver or 'Unassigned' }}</div>
+  </div>
+  <a href="/vehicles" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> All Vehicles</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+    <div><div class="stat-label">Total Expenses</div><div class="stat-value" id="stExp">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-fuel-pump"></i></div>
+    <div><div class="stat-label">Fuel Amount</div><div class="stat-value" id="stFuelAmt">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-droplet-half"></i></div>
+    <div><div class="stat-label">Fuel Litres</div><div class="stat-value" id="stFuelL">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-bank"></i></div>
+    <div><div class="stat-label">EMI</div>
+      <div class="stat-value">{{ '₹' + vehicle.emi_amount if (vehicle.loan_available or '')|lower == 'yes' and vehicle.emi_amount else 'No Loan' }}</div></div>
+  </div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6"><div class="glass-card animate-in h-100">
+    <div class="section-title"><i class="bi bi-card-checklist"></i> Registration &amp; Compliance</div>
+    <table class="table table-sm mb-0" style="font-size:13.4px">
+      <tr><td class="text-muted">RC Number</td><td class="fw-semibold">{{ vehicle.rc_number or '—' }}</td>
+          <td class="text-muted">RC Expiry</td><td>{{ vehicle.rc_expiry or '—' }}</td></tr>
+      <tr><td class="text-muted">Insurance</td><td class="fw-semibold">{{ vehicle.insurance_company or '—' }}<br>
+            <small class="text-muted">{{ vehicle.insurance_policy_number or '' }}</small></td>
+          <td class="text-muted">Ins. Expiry</td><td>{{ vehicle.insurance_expiry_date or '—' }}</td></tr>
+      <tr><td class="text-muted">Permit</td><td class="fw-semibold">{{ vehicle.permit_number or '—' }}</td>
+          <td class="text-muted">Permit Expiry</td><td>{{ vehicle.permit_expiry_date or '—' }}</td></tr>
+      <tr><td class="text-muted">Fitness Expiry</td><td>{{ vehicle.fitness_expiry_date or '—' }}</td>
+          <td class="text-muted">PUC Expiry</td><td>{{ vehicle.puc_expiry_date or '—' }}</td></tr>
+    </table>
+  </div></div>
+  <div class="col-lg-6"><div class="glass-card animate-in h-100">
+    <div class="section-title"><i class="bi bi-bank"></i> Loan Details</div>
+    {% if (vehicle.loan_available or '')|lower == 'yes' %}
+    <table class="table table-sm mb-0" style="font-size:13.4px">
+      <tr><td class="text-muted">Bank</td><td class="fw-semibold">{{ vehicle.bank_name or '—' }}</td>
+          <td class="text-muted">Account</td><td>{{ vehicle.loan_account_number or '—' }}</td></tr>
+      <tr><td class="text-muted">EMI Amount</td><td class="fw-semibold">₹{{ vehicle.emi_amount or '0' }}</td>
+          <td class="text-muted">EMI Day</td><td>{{ vehicle.emi_date or '—' }}</td></tr>
+      <tr><td class="text-muted">Loan Start</td><td>{{ vehicle.loan_start_date or '—' }}</td>
+          <td class="text-muted">Loan End</td><td>{{ vehicle.loan_end_date or '—' }}</td></tr>
+    </table>
+    {% else %}
+    <div class="empty-state py-4"><i class="bi bi-patch-check"></i>No active loan on this vehicle</div>
+    {% endif %}
+  </div></div>
+</div>
+
+<div class="glass-card animate-in mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="section-title mb-0"><i class="bi bi-folder2-open"></i> Documents</div>
+    <div class="admin-only d-flex gap-2 flex-wrap">
+      <select class="form-select form-select-sm" id="docType" style="width:auto">
+        <option>RC</option><option>Insurance</option><option>Permit</option>
+        <option>Fitness</option><option>PUC</option><option>Other</option>
+      </select>
+      <input type="file" class="form-control form-control-sm" id="docFile" style="width:auto">
+      <button class="btn btn-gold btn-sm" onclick="uploadDoc()"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+    </div>
+  </div>
+  <div class="row g-2" id="docList"><div class="spinner-gold"></div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-wallet2"></i> Vehicle Expenses</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Date</th><th>Category</th><th>Sub Category</th><th>Description</th><th class="text-end">Amount</th><th>Paid By</th></tr></thead>
+      <tbody id="expBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const VEHICLE_ID = "{{ vehicle.vehicle_id }}";
+
+async function loadDetails() {
+  try {
+    const data = await api(`/api/vehicles/${VEHICLE_ID}/expenses`);
+    setText("stExp", fmtMoney(data.total_expense));
+    setText("stFuelAmt", fmtMoney(data.total_fuel_amount));
+    setText("stFuelL", fmtNum(data.total_fuel_litres) + " L");
+    renderRows("expBody", data.expenses, e => `<tr>
+      <td>${fmtDate(e.expense_date)}</td>
+      <td><span class="badge-soft gold">${esc(e.category || "-")}</span></td>
+      <td>${esc(e.sub_category || "-")}</td>
+      <td>${esc(e.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(e.amount)}</td>
+      <td>${esc(e.paid_by || "-")}</td></tr>`, "No expenses for this vehicle");
+  } catch (e) { toastError(e); }
+}
+
+async function loadDocs() {
+  try {
+    const docs = await api(`/api/vehicles/${VEHICLE_ID}/documents`);
+    const list = document.getElementById("docList");
+    if (!docs.length) {
+      list.innerHTML = '<div class="empty-state py-3"><i class="bi bi-file-earmark"></i>No documents uploaded</div>';
+      return;
+    }
+    list.innerHTML = docs.map(d => `<div class="col-md-4 col-lg-3">
+      <a class="doc-card text-decoration-none" href="${esc(d.drive_url)}" target="_blank">
+        <i class="bi bi-file-earmark-richtext"></i>
+        <div><div class="fw-bold" style="font-size:13px;color:var(--text)">${esc(d.document_type)}</div>
+        <small class="text-muted">${esc(d.file_name)}</small></div></a></div>`).join("");
+  } catch (e) { toastError(e); }
+}
+
+async function uploadDoc() {
+  const file = document.getElementById("docFile").files[0];
+  if (!file) return toast("Choose a file first", "error");
+  const fd = new FormData();
+  fd.append("document_type", document.getElementById("docType").value);
+  fd.append("file", file);
+  try {
+    await api(`/api/vehicles/${VEHICLE_ID}/documents`, { method: "POST", body: fd });
+    toast("Document uploaded");
+    document.getElementById("docFile").value = "";
+    loadDocs();
+  } catch (e) { toastError(e); }
+}
+
+loadDetails();
+loadDocs();
+</script>
+{% endblock %}

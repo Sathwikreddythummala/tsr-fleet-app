@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: tsr-enterprises
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        sync: false
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: SESSION_MAX_AGE
+        value: "86400"

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+{% block page_title %}Employees{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Drivers &amp; Employees</h4><div class="sub">Team, licenses, salaries and vehicle assignment</div></div>
+  <div class="d-flex gap-2">
+    <a href="/salaries" class="btn btn-ghost"><i class="bi bi-cash-coin me-1"></i> Salaries</a>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Employee</button>
+  </div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Name, mobile, vehicle..." oninput="applyFilters()"></div>
+  <div><label class="form-label">Type</label>
+    <select class="form-select" id="fType" onchange="applyFilters()">
+      <option value="">All</option><option>Driver</option><option>Helper</option>
+      <option>Office Staff</option><option>Other</option></select></div>
+  <div><label class="form-label">Status</label>
+    <select class="form-select" id="fStatus" onchange="applyFilters()">
+      <option value="">All</option><option>Active</option><option>Exit</option></select></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Name</th><th>Type</th><th>Mobile</th><th>Vehicle</th>
+        <th>License Expiry</th><th class="text-end">Salary</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="driverBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="driverModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="driverModalTitle">Add Employee</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="driverForm" class="row g-3">
+        <div class="col-md-5"><label class="form-label">Name *</label>
+          <input class="form-control" name="driver_name" required></div>
+        <div class="col-md-4"><label class="form-label">Employee Type</label>
+          <select class="form-select" name="employee_type">
+            <option>Driver</option><option>Helper</option><option>Office Staff</option><option>Other</option></select></div>
+        <div class="col-md-3"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Exit</option></select></div>
+        <div class="col-md-4"><label class="form-label">Mobile *</label>
+          <input class="form-control" name="mobile_number" maxlength="10"></div>
+        <div class="col-md-4"><label class="form-label">Emergency Contact</label>
+          <input class="form-control" name="emergency_contact" maxlength="10"></div>
+        <div class="col-md-4"><label class="form-label">Email</label>
+          <input type="email" class="form-control" name="email"></div>
+        <div class="col-12"><label class="form-label">Address</label>
+          <input class="form-control" name="address"></div>
+        <div class="col-md-4"><label class="form-label">Aadhaar Number</label>
+          <input class="form-control" name="aadhaar_number" maxlength="12"></div>
+        <div class="col-md-4"><label class="form-label">Driving License</label>
+          <input class="form-control" name="driving_license_number"></div>
+        <div class="col-md-4"><label class="form-label">License Expiry</label>
+          <input type="date" class="form-control" name="license_expiry_date"></div>
+        <div class="col-md-4"><label class="form-label">Bank Name</label>
+          <input class="form-control" name="bank_name"></div>
+        <div class="col-md-4"><label class="form-label">Account Number</label>
+          <input class="form-control" name="account_number"></div>
+        <div class="col-md-4"><label class="form-label">IFSC Code</label>
+          <input class="form-control" name="ifsc_code" style="text-transform:uppercase"></div>
+        <div class="col-md-3"><label class="form-label">Monthly Salary</label>
+          <input type="number" step="0.01" class="form-control" name="salary"></div>
+        <div class="col-md-3"><label class="form-label">Joining Date</label>
+          <input type="date" class="form-control" name="joining_date"></div>
+        <div class="col-md-3"><label class="form-label">Exit Date</label>
+          <input type="date" class="form-control" name="exit_date"></div>
+        <div class="col-md-3"><label class="form-label">Assigned Vehicle</label>
+          <select class="form-select" name="assigned_vehicle"><option value="">— None —</option></select></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveDriver()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let drivers = [], editingId = null;
+
+async function loadDrivers() {
+  setLoading("driverBody");
+  try { drivers = await api("/api/drivers"); applyFilters(); }
+  catch (e) { toastError(e); }
+}
+
+function applyFilters() {
+  const q = document.getElementById("fSearch").value.toLowerCase();
+  const type = document.getElementById("fType").value;
+  const status = document.getElementById("fStatus").value;
+  let rows = drivers;
+  if (q) rows = rows.filter(d => `${d.driver_name} ${d.mobile_number} ${d.assigned_vehicle}`.toLowerCase().includes(q));
+  if (type) rows = rows.filter(d => (d.employee_type || "Driver") === type);
+  if (status) rows = rows.filter(d => (d.status || "Active") === status);
+  renderRows("driverBody", rows, d => {
+    const expiry = d.license_expiry_date;
+    const days = expiry ? Math.floor((new Date(expiry) - new Date()) / 86400000) : null;
+    const licBadge = !expiry ? '<span class="badge-soft muted">—</span>'
+      : days < 0 ? `<span class="badge-soft danger">Expired</span>`
+      : days <= 30 ? `<span class="badge-soft warning">${fmtDate(expiry)}</span>`
+      : `<span class="badge-soft success">${fmtDate(expiry)}</span>`;
+    return `<tr>
+      <td><a href="/drivers/${d.driver_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(d.driver_name)}</a></td>
+      <td>${esc(d.employee_type || "Driver")}</td>
+      <td>${esc(d.mobile_number || "-")}</td>
+      <td>${esc(d.assigned_vehicle || "-")}</td>
+      <td>${licBadge}</td>
+      <td class="text-end fw-bold">${fmtMoney(d.salary)}</td>
+      <td>${statusBadge(d.status || "Active")}</td>
+      ${actionButtons(d.driver_id,
+        `<a class="btn-icon-sm" href="/drivers/${d.driver_id}" title="Details"><i class="bi bi-eye"></i></a>`)}
+    </tr>`;
+  }, "No employees added yet");
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("driverModalTitle").textContent = "Add Employee";
+  fillForm(document.getElementById("driverForm"), null);
+  openModal("driverModal");
+}
+
+function editRecord(id) {
+  const d = drivers.find(x => x.driver_id === id);
+  if (!d) return;
+  editingId = id;
+  document.getElementById("driverModalTitle").textContent = "Edit " + d.driver_name;
+  fillForm(document.getElementById("driverForm"), d);
+  openModal("driverModal");
+}
+
+async function saveDriver() {
+  const data = formData(document.getElementById("driverForm"));
+  if (!data.driver_name) return toast("Name is required", "error");
+  try {
+    if (editingId) await api(`/api/drivers/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/drivers", { method: "POST", body: data });
+    closeModal("driverModal");
+    toast(editingId ? "Employee updated" : "Employee added");
+    loadDrivers();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  const d = drivers.find(x => x.driver_id === id);
+  if (!confirm(`Delete ${d ? d.driver_name : id}?`)) return;
+  try { await api(`/api/drivers/${id}`, { method: "DELETE" }); toast("Employee deleted"); loadDrivers(); }
+  catch (e) { toastError(e); }
+}
+
+loadDrivers();
+loadVehicleOptions(document.querySelector('#driverForm [name="assigned_vehicle"]'));
+</script>
+{% endblock %}

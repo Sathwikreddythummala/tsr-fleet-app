@@ -1,0 +1,11 @@
+Save your TSR logo image in this folder as:  logo.png
+
+Full path:  C:\TSR Fleet App\static\img\logo.png
+
+It will automatically appear in:
+- Sidebar brand (top-left)
+- Login page
+- Browser tab icon (favicon)
+
+Until the file exists, the app shows the gold "TSR" text badge as fallback.
+You can delete this text file after adding the logo.

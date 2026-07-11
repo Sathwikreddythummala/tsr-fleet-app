@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}{{ driver.driver_name }}{% endblock %}
+{% block page_title %}Employee · {{ driver.driver_name }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h4>{{ driver.driver_name }}
+      <span class="badge-soft {{ 'success' if (driver.status or 'Active') == 'Active' else 'muted' }}">{{ driver.status or 'Active' }}</span>
+    </h4>
+    <div class="sub">{{ driver.employee_type or 'Driver' }} · {{ driver.mobile_number or '' }} · Vehicle: {{ driver.assigned_vehicle or 'Unassigned' }}</div>
+  </div>
+  <a href="/drivers" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> All Employees</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Monthly Salary</div><div class="stat-value">₹{{ driver.salary or '0' }}</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-arrow-up-right-circle"></i></div>
+    <div><div class="stat-label">Advance ({{ '' }}this month)</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cup-hot"></i></div>
+    <div><div class="stat-label">Meals (this month)</div><div class="stat-value" id="stMeals">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash"></i></div>
+    <div><div class="stat-label">Net Payable</div><div class="stat-value text-success" id="stNet">—</div></div>
+  </div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6"><div class="glass-card animate-in h-100">
+    <div class="section-title"><i class="bi bi-person-vcard"></i> Profile</div>
+    <table class="table table-sm mb-0" style="font-size:13.4px">
+      <tr><td class="text-muted">Email</td><td>{{ driver.email or '—' }}</td>
+          <td class="text-muted">Emergency</td><td>{{ driver.emergency_contact or '—' }}</td></tr>
+      <tr><td class="text-muted">Aadhaar</td><td>{{ driver.aadhaar_number or '—' }}</td>
+          <td class="text-muted">License</td><td>{{ driver.driving_license_number or '—' }}</td></tr>
+      <tr><td class="text-muted">License Expiry</td><td>{{ driver.license_expiry_date or '—' }}</td>
+          <td class="text-muted">Joining</td><td>{{ driver.joining_date or '—' }}</td></tr>
+      <tr><td class="text-muted">Bank</td><td>{{ driver.bank_name or '—' }}</td>
+          <td class="text-muted">Account</td><td>{{ driver.account_number or '—' }} {{ driver.ifsc_code or '' }}</td></tr>
+      <tr><td class="text-muted">Address</td><td colspan="3">{{ driver.address or '—' }}</td></tr>
+    </table>
+  </div></div>
+  <div class="col-lg-6"><div class="glass-card animate-in h-100">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="section-title mb-0"><i class="bi bi-folder2-open"></i> Documents</div>
+      <div class="admin-only d-flex gap-2 flex-wrap">
+        <select class="form-select form-select-sm" id="docType" style="width:auto">
+          <option>Aadhaar</option><option>License</option><option>Photo</option>
+          <option>Bank Passbook</option><option>Other</option></select>
+        <input type="file" class="form-control form-control-sm" id="docFile" style="width:auto">
+        <button class="btn btn-gold btn-sm" onclick="uploadDoc()"><i class="bi bi-cloud-arrow-up"></i></button>
+      </div>
+    </div>
+    <div class="row g-2" id="docList"><div class="spinner-gold"></div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="d-flex justify-content-between align-items-center p-3 pb-0">
+    <div class="section-title mb-0"><i class="bi bi-journal-text"></i> Salary Adjustments</div>
+    <div class="d-flex gap-2 align-items-center">
+      <input type="month" class="form-control form-control-sm" id="fMonth" style="width:auto" onchange="loadAdjustments()">
+      <button class="btn btn-gold btn-sm admin-only" onclick="openModal('adjModal')"><i class="bi bi-plus-lg"></i> Add</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Month</th><th>Type</th><th>Description</th><th class="text-end">Amount</th><th>Actions</th></tr></thead>
+      <tbody id="adjBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="adjModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Adjustment</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="adjForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Type</label>
+          <select class="form-select" name="entry_type">
+            <option>Advance</option><option>Meals</option><option>Incentive</option><option>Deduction</option></select></div>
+        <div class="col-6"><label class="form-label">Month</label>
+          <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveAdjustment()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DRIVER_ID = "{{ driver.driver_id }}";
+const SALARY = Number("{{ driver.salary or 0 }}") || 0;
+
+document.getElementById("fMonth").value = thisMonth();
+document.querySelector('#adjForm [name="for_month"]').value = thisMonth();
+
+async function loadAdjustments() {
+  const month = document.getElementById("fMonth").value;
+  setLoading("adjBody");
+  try {
+    const rows = await api(`/api/salaries/adjustments?driver_id=${DRIVER_ID}&month=${month}`);
+    const sum = t => rows.filter(r => r.entry_type === t)
+      .reduce((a, r) => a + (Number(r.amount) || 0), 0);
+    setText("stAdvance", fmtMoney(sum("Advance")));
+    setText("stMeals", fmtMoney(sum("Meals")));
+    setText("stNet", fmtMoney(SALARY + sum("Incentive") - sum("Advance") - sum("Meals") - sum("Deduction")));
+    renderRows("adjBody", rows, r => `<tr>
+      <td>${esc(r.for_month)}</td>
+      <td>${statusBadge(r.entry_type)}</td>
+      <td>${esc(r.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(r.amount)}</td>
+      <td><button class="btn-icon-sm danger admin-only" onclick="deleteAdjustment('${r.incentive_id}')"><i class="bi bi-trash"></i></button></td>
+    </tr>`, "No adjustments for this month");
+  } catch (e) { toastError(e); }
+}
+
+async function saveAdjustment() {
+  const data = formData(document.getElementById("adjForm"));
+  data.driver_id = DRIVER_ID;
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    await api("/api/salaries/adjustments", { method: "POST", body: data });
+    closeModal("adjModal");
+    toast("Adjustment added");
+    loadAdjustments();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteAdjustment(id) {
+  if (!confirm("Delete this adjustment?")) return;
+  try { await api(`/api/salaries/adjustments/${id}`, { method: "DELETE" }); toast("Deleted"); loadAdjustments(); }
+  catch (e) { toastError(e); }
+}
+
+async function loadDocs() {
+  try {
+    const docs = await api(`/api/drivers/${DRIVER_ID}/documents`);
+    const list = document.getElementById("docList");
+    if (!docs.length) {
+      list.innerHTML = '<div class="empty-state py-3"><i class="bi bi-file-earmark"></i>No documents uploaded</div>';
+      return;
+    }
+    list.innerHTML = docs.map(d => `<div class="col-md-6">
+      <a class="doc-card text-decoration-none" href="${esc(d.drive_url)}" target="_blank">
+        <i class="bi bi-file-earmark-richtext"></i>
+        <div><div class="fw-bold" style="font-size:13px;color:var(--text)">${esc(d.document_type)}</div>
+        <small class="text-muted">${esc(d.file_name)}</small></div></a></div>`).join("");
+  } catch (e) { toastError(e); }
+}
+
+async function uploadDoc() {
+  const file = document.getElementById("docFile").files[0];
+  if (!file) return toast("Choose a file first", "error");
+  const fd = new FormData();
+  fd.append("document_type", document.getElementById("docType").value);
+  fd.append("file", file);
+  try {
+    await api(`/api/drivers/${DRIVER_ID}/documents`, { method: "POST", body: fd });
+    toast("Document uploaded");
+    document.getElementById("docFile").value = "";
+    loadDocs();
+  } catch (e) { toastError(e); }
+}
+
+loadAdjustments();
+loadDocs();
+</script>
+{% endblock %}

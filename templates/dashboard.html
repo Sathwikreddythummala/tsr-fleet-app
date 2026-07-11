@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h4>Business Overview</h4>
+    <div class="sub">Income, expenses, fleet and finance at a glance</div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4" id="statRow">
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+    <div><div class="stat-label">Total Income</div><div class="stat-value text-success" id="stIncome">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+    <div><div class="stat-label">Total Expense</div><div class="stat-value text-danger" id="stExpense">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-safe2"></i></div>
+    <div><div class="stat-label">Total Balance</div><div class="stat-value" id="stBalance">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calendar-day"></i></div>
+    <div><div class="stat-label">Today Expense</div><div class="stat-value" id="stToday">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
+    <div><div class="stat-label">Monthly Expense</div><div class="stat-value" id="stMonthly">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div><div class="stat-label">Total Billing</div><div class="stat-value" id="stBilling">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+    <div><div class="stat-label">Received</div><div class="stat-value text-success" id="stReceived">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+    <div><div class="stat-label">Outstanding</div><div class="stat-value text-danger" id="stOutstanding">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-fuel-pump"></i></div>
+    <div><div class="stat-label">Fuel (Litres / Amount)</div><div class="stat-value" id="stFuel">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-truck-front"></i></div>
+    <div><div class="stat-label">Active Vehicles / Drivers</div><div class="stat-value" id="stFleet">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="stat-label">Purse Balance</div><div class="stat-value" id="stPurse">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-coin"></i></div>
+    <div><div class="stat-label">Mithi Pending / Main Pending</div><div class="stat-value" id="stMithi">—</div></div>
+  </div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-7"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Income vs Expense (last 6 months)</div>
+    <div id="chartTrend"><div class="spinner-gold"></div></div>
+  </div></div>
+  <div class="col-lg-5"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-pie-chart-fill"></i> Expense by Category</div>
+    <div id="chartCategory"><div class="spinner-gold"></div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-clock-history"></i> Recent Expenses</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Date</th><th>Vehicle</th><th>Category</th><th>Description</th><th class="text-end">Amount</th><th>Paid By</th></tr></thead>
+      <tbody id="recentBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GOLD = ["#D4A017", "#FFC107", "#FFD54F", "#F59E0B", "#B8860B", "#E6B800", "#8B6914"];
+
+async function loadDashboard() {
+  try {
+    const s = await api("/api/dashboard/summary");
+    setText("stIncome", fmtMoney(s.total_income));
+    setText("stExpense", fmtMoney(s.total_expense));
+    setText("stBalance", fmtMoney(s.total_balance));
+    setText("stToday", fmtMoney(s.today_expense));
+    setText("stMonthly", fmtMoney(s.monthly_expense));
+    setText("stBilling", fmtMoney(s.total_billing));
+    setText("stReceived", fmtMoney(s.total_received));
+    setText("stOutstanding", fmtMoney(s.total_outstanding));
+    setText("stFuel", fmtNum(s.total_fuel_litres) + " L / " + fmtMoney(s.total_fuel_amount));
+    setText("stFleet", s.active_vehicles + " / " + s.active_drivers);
+    setText("stPurse", fmtMoney(s.purse_balance));
+    setText("stMithi", fmtMoney(s.mithi_pending) + " / " + fmtMoney(s.main_amount_pending));
+
+    renderRows("recentBody", s.recent_expenses, e => `<tr>
+      <td>${fmtDate(e.expense_date)}</td>
+      <td>${esc(e.vehicle_number || "-")}</td>
+      <td><span class="badge-soft gold">${esc(e.category || "-")}</span></td>
+      <td>${esc(e.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(e.amount)}</td>
+      <td>${esc(e.paid_by || "-")}</td></tr>`, "No expenses yet");
+
+    document.getElementById("chartTrend").innerHTML = "";
+    new ApexCharts(document.getElementById("chartTrend"), {
+      chart: { type: "bar", height: 290, toolbar: { show: false }, fontFamily: "inherit",
+               animations: { enabled: true, speed: 700 } },
+      series: [{ name: "Income", data: s.chart_income }, { name: "Expense", data: s.chart_expense }],
+      xaxis: { categories: s.chart_months },
+      colors: ["#16A34A", "#D4A017"],
+      plotOptions: { bar: { borderRadius: 6, columnWidth: "45%" } },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(212,160,23,.15)" },
+      legend: { position: "top" }
+    }).render();
+
+    const cats = Object.entries(s.chart_categories).sort((a, b) => b[1] - a[1]).slice(0, 7);
+    document.getElementById("chartCategory").innerHTML = "";
+    new ApexCharts(document.getElementById("chartCategory"), {
+      chart: { type: "donut", height: 290, fontFamily: "inherit",
+               animations: { enabled: true, speed: 700 } },
+      series: cats.map(c => Math.round(c[1])),
+      labels: cats.map(c => c[0]),
+      colors: GOLD,
+      legend: { position: "bottom" },
+      dataLabels: { enabled: false },
+      plotOptions: { pie: { donut: { size: "68%" } } }
+    }).render();
+  } catch (e) {
+    toastError(e);
+    const fail = '<div class="empty-state"><i class="bi bi-database-x"></i>Data unavailable — check database connection</div>';
+    document.getElementById("chartTrend").innerHTML = fail;
+    document.getElementById("chartCategory").innerHTML = fail;
+    renderRows("recentBody", [], null, "Data unavailable");
+  }
+}
+loadDashboard();
+</script>
+{% endblock %}

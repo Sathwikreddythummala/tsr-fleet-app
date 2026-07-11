@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Access{% endblock %}
+{% block page_title %}Access Control{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Users &amp; Permissions</h4><div class="sub">Admin-only: manage who can use TSR Enterprises</div></div>
+  <button class="btn btn-gold" onclick="openAdd()"><i class="bi bi-person-plus me-1"></i> Add User</button>
+</div>
+
+<div class="glass-card table-card animate-in mb-4">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+      <tbody id="userBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="section-title p-3 pb-0 mb-0"><i class="bi bi-journal-text"></i> Recent Audit Logs</div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr><th>Time</th><th>Action</th><th>Module</th><th>Details</th><th>User</th></tr></thead>
+      <tbody id="logBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="userModalTitle">Add User</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="userForm" class="row g-3">
+        <div class="col-12"><label class="form-label">Email *</label>
+          <input type="email" class="form-control" name="email" required></div>
+        <div class="col-12"><label class="form-label">Name</label>
+          <input class="form-control" name="name"></div>
+        <div class="col-6"><label class="form-label">Role *</label>
+          <select class="form-select" name="role">
+            <option value="admin">Admin - full access</option>
+            <option value="viewer">Viewer - read only</option>
+            <option value="driver">Driver - portal only</option></select></div>
+        <div class="col-6"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Inactive</option></select></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveUser()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let users = [], editingId = null;
+
+function roleBadge(role) {
+  const cls = role === "admin" ? "gold" : role === "viewer" ? "muted" : "warning";
+  return `<span class="badge-soft ${cls}">${esc(role)}</span>`;
+}
+
+async function loadUsers() {
+  setLoading("userBody");
+  try {
+    users = await api("/api/access/users");
+    renderRows("userBody", users, u => `<tr>
+      <td class="fw-bold">${esc(u.email)}</td>
+      <td>${esc(u.name || "-")}</td>
+      <td>${roleBadge(u.role)}</td>
+      <td>${statusBadge(u.status || "Active")}</td>
+      <td>${fmtDate(u.created_date)}</td>
+      <td class="text-nowrap">
+        <button class="btn-icon-sm" onclick="editRecord('${u.user_id}')" title="Edit"><i class="bi bi-pencil"></i></button>
+        <button class="btn-icon-sm" onclick="toggleStatus('${u.user_id}')" title="Activate/Deactivate">
+          <i class="bi bi-toggle-${(u.status || "Active") === "Active" ? "on" : "off"}"></i></button>
+        <button class="btn-icon-sm danger" onclick="deleteRecord('${u.user_id}')" title="Delete"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`, "No users added");
+  } catch (e) { toastError(e); }
+}
+
+async function loadLogs() {
+  try {
+    const logs = await api("/api/access/audit-logs?limit=50");
+    renderRows("logBody", logs, l => `<tr>
+      <td class="text-nowrap">${esc(l.timestamp || "-")}</td>
+      <td>${statusBadge(l.action)}</td>
+      <td>${esc(l.module || "-")}</td>
+      <td>${esc(l.details || "-")}</td>
+      <td>${esc(l.user_email || "-")}</td>
+    </tr>`, "No audit logs yet");
+  } catch (e) { toastError(e); }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("userModalTitle").textContent = "Add User";
+  fillForm(document.getElementById("userForm"), null);
+  openModal("userModal");
+}
+
+function editRecord(id) {
+  const u = users.find(x => x.user_id === id);
+  if (!u) return;
+  editingId = id;
+  document.getElementById("userModalTitle").textContent = "Edit " + u.email;
+  fillForm(document.getElementById("userForm"), u);
+  openModal("userModal");
+}
+
+async function saveUser() {
+  const data = formData(document.getElementById("userForm"));
+  if (!data.email) return toast("Email is required", "error");
+  try {
+    if (editingId) await api(`/api/access/users/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/access/users", { method: "POST", body: data });
+    closeModal("userModal");
+    toast(editingId ? "User updated" : "User added");
+    loadUsers(); loadLogs();
+  } catch (e) { toastError(e); }
+}
+
+async function toggleStatus(id) {
+  const u = users.find(x => x.user_id === id);
+  if (!u) return;
+  const next = (u.status || "Active") === "Active" ? "Inactive" : "Active";
+  try {
+    await api(`/api/access/users/${id}`, { method: "PUT", body: { status: next } });
+    toast(`User ${next === "Active" ? "activated" : "deactivated"}`);
+    loadUsers();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  const u = users.find(x => x.user_id === id);
+  if (!confirm(`Delete user ${u ? u.email : id}?`)) return;
+  try { await api(`/api/access/users/${id}`, { method: "DELETE" }); toast("User deleted"); loadUsers(); }
+  catch (e) { toastError(e); }
+}
+
+loadUsers();
+loadLogs();
+</script>
+{% endblock %}

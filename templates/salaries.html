@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Salaries{% endblock %}
+{% block page_title %}Salaries{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Monthly Salary Summary</h4><div class="sub">Salary + incentives − advance − meals − deductions</div></div>
+  <div class="d-flex gap-2 align-items-center">
+    <input type="month" class="form-control" id="fMonth" style="width:auto" onchange="loadSalaries()">
+    <button class="btn btn-ghost" onclick="exportExcel()"><i class="bi bi-file-earmark-excel me-1"></i> Export Excel</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-people"></i></div>
+    <div><div class="stat-label">Active Employees</div><div class="stat-value" id="stCount">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Total Net Payable</div><div class="stat-value text-success" id="stNet">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-arrow-up-right-circle"></i></div>
+    <div><div class="stat-label">Total Advances</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Employee</th><th>Type</th><th class="text-end">Salary</th><th class="text-end">Advance</th>
+        <th class="text-end">Meals</th><th class="text-end">Incentive</th><th class="text-end">Deduction</th>
+        <th class="text-end">Net Payable</th>
+      </tr></thead>
+      <tbody id="salaryBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("fMonth").value = thisMonth();
+
+async function loadSalaries() {
+  const month = document.getElementById("fMonth").value;
+  setLoading("salaryBody");
+  try {
+    const data = await api(`/api/salaries?month=${month}`);
+    setText("stCount", data.rows.length);
+    setText("stNet", fmtMoney(data.total_net));
+    setText("stAdvance", fmtMoney(data.rows.reduce((a, r) => a + r.advance, 0)));
+    renderRows("salaryBody", data.rows, r => `<tr>
+      <td><a href="/drivers/${r.driver_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(r.driver_name)}</a></td>
+      <td>${esc(r.employee_type || "Driver")}</td>
+      <td class="text-end">${fmtMoney(r.salary)}</td>
+      <td class="text-end text-danger">${fmtMoney(r.advance)}</td>
+      <td class="text-end">${fmtMoney(r.meals)}</td>
+      <td class="text-end text-success">${fmtMoney(r.incentive)}</td>
+      <td class="text-end text-danger">${fmtMoney(r.deduction)}</td>
+      <td class="text-end fw-bold">${fmtMoney(r.net_payable)}</td>
+    </tr>`, "No active employees");
+  } catch (e) { toastError(e); }
+}
+
+function exportExcel() {
+  window.location.href = `/api/salaries/export?month=${document.getElementById("fMonth").value}`;
+}
+
+loadSalaries();
+</script>
+{% endblock %}

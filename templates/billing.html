@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Billing{% endblock %}
+{% block page_title %}Billing{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Billing &amp; Receivables</h4><div class="sub">Invoices, GST, TDS and payment tracking</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost admin-only" onclick="openReceivable()"><i class="bi bi-cash-coin me-1"></i> Add Payment</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Bill</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div><div class="stat-label">Total Billed (filtered)</div><div class="stat-value" id="stBilled">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+    <div><div class="stat-label">Received</div><div class="stat-value text-success" id="stPaid">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+    <div><div class="stat-label">Outstanding</div><div class="stat-value text-danger" id="stBalance">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Vehicle</label>
+    <select class="form-select" id="fVehicle" onchange="loadBills()"><option value="">All</option></select></div>
+  <div><label class="form-label">Status</label>
+    <select class="form-select" id="fStatus" onchange="loadBills()">
+      <option value="">All</option><option>Pending</option><option>Partial</option><option>Paid</option></select></div>
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth" onchange="loadBills()"></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Invoice</th><th>Date</th><th>Month</th><th>Vehicle</th>
+        <th class="text-end">Sub Total</th><th class="text-end">SGST</th><th class="text-end">CGST</th>
+        <th class="text-end">TDS</th><th class="text-end">Total</th><th>Payment</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="billBody"><tr><td colspan="11"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- bill modal -->
+<div class="modal fade" id="billModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="billModalTitle">Add Bill</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="billForm" class="row g-3">
+        <div class="col-md-4"><label class="form-label">Invoice Number</label>
+          <input class="form-control" name="invoice_number" placeholder="Auto-generated if empty"></div>
+        <div class="col-md-4"><label class="form-label">Invoice Date</label>
+          <input type="date" class="form-control" name="invoice_date"></div>
+        <div class="col-md-4"><label class="form-label">Payment Month</label>
+          <input type="month" class="form-control" name="payment_month"></div>
+        <div class="col-md-4"><label class="form-label">Vehicle *</label>
+          <select class="form-select" name="vehicle_number"><option value="">— Select —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Fixed Amount</label>
+          <input type="number" step="0.01" class="form-control calc" name="fixed_amount"></div>
+        <div class="col-md-4"><label class="form-label">Variable Amount</label>
+          <input type="number" step="0.01" class="form-control calc" name="variable_amount"></div>
+        <div class="col-md-3"><label class="form-label">Traffic Challan (−)</label>
+          <input type="number" step="0.01" class="form-control calc" name="traffic_challan"></div>
+        <div class="col-md-3"><label class="form-label">Tollgates (+)</label>
+          <input type="number" step="0.01" class="form-control calc" name="tollgates"></div>
+        <div class="col-md-2"><label class="form-label">SGST</label>
+          <input type="number" step="0.01" class="form-control" name="sgst" placeholder="auto 6%"></div>
+        <div class="col-md-2"><label class="form-label">CGST</label>
+          <input type="number" step="0.01" class="form-control" name="cgst" placeholder="auto 6%"></div>
+        <div class="col-md-2"><label class="form-label">TDS</label>
+          <input type="number" step="0.01" class="form-control" name="tds" placeholder="auto 1%"></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+        <div class="col-12">
+          <div class="glass-card p-3" style="background:rgba(255,213,79,.18)">
+            <strong>Estimated Total: <span id="calcTotal">₹0</span></strong>
+            <small class="text-muted d-block">Sub total + SGST + CGST − TDS − challan + tolls</small>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveBill()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- receivable modal -->
+<div class="modal fade" id="recModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Payment</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="recForm" class="row g-3">
+        <div class="col-12"><label class="form-label">Bill (or leave empty and pick invoice)</label>
+          <select class="form-select" name="bill_id"><option value="">— Whole invoice —</option></select></div>
+        <div class="col-12"><label class="form-label">Invoice (split across its bills)</label>
+          <select class="form-select" name="invoice_number"><option value="">— Select bill above —</option></select></div>
+        <div class="col-6"><label class="form-label">Receive Date</label>
+          <input type="date" class="form-control" name="receive_date"></div>
+        <div class="col-6"><label class="form-label">Payment Month</label>
+          <input type="month" class="form-control" name="payment_month"></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Bank Transfer</option><option>UPI</option><option>Cash</option><option>Cheque</option></select></div>
+        <div class="col-12"><label class="form-label">Reference Number</label>
+          <input class="form-control" name="reference_number"></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveReceivable()"><i class="bi bi-check-lg me-1"></i> Save Payment</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- payment history modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="historyTitle">Payments</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr><th>Date</th><th>Month</th><th class="text-end">Amount</th><th>Mode</th><th>Reference</th><th></th></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let bills = [], editingId = null;
+
+async function loadBills() {
+  setLoading("billBody");
+  const params = new URLSearchParams({
+    vehicle: document.getElementById("fVehicle").value,
+    status: document.getElementById("fStatus").value,
+    month: document.getElementById("fMonth").value,
+  });
+  try {
+    const data = await api(`/api/billing?${params}`);
+    bills = data.rows;
+    setText("stBilled", fmtMoney(data.total_billed));
+    setText("stPaid", fmtMoney(data.total_paid));
+    setText("stBalance", fmtMoney(data.total_balance));
+    renderRows("billBody", data.rows, b => {
+      const total = Number(b.total_amount) || 0;
+      const paid = Number(b.paid_amount) || 0;
+      const pct = total ? Math.min(100, Math.round(paid / total * 100)) : 0;
+      return `<tr>
+        <td class="fw-bold">${esc(b.invoice_number)}</td>
+        <td>${fmtDate(b.invoice_date)}</td>
+        <td>${esc(b.payment_month || "-")}</td>
+        <td>${esc(b.vehicle_number || "-")}</td>
+        <td class="text-end">${fmtMoney(b.sub_total)}</td>
+        <td class="text-end">${fmtMoney(b.sgst)}</td>
+        <td class="text-end">${fmtMoney(b.cgst)}</td>
+        <td class="text-end">${fmtMoney(b.tds)}</td>
+        <td class="text-end fw-bold">${fmtMoney(b.total_amount)}</td>
+        <td style="min-width:130px">
+          ${statusBadge(b.payment_status || "Pending")}
+          <div class="progress progress-gold mt-1"><div class="progress-bar" style="width:${pct}%"></div></div>
+          <small class="text-muted">${fmtMoney(paid)} / ${fmtMoney(total)}</small>
+        </td>
+        ${actionButtons(b.bill_id,
+          `<button class="btn-icon-sm" onclick="showHistory('${b.bill_id}')" title="Payments"><i class="bi bi-clock-history"></i></button>`)}
+      </tr>`;
+    }, "No bills match the filters");
+    updateReceivableDropdowns();
+  } catch (e) { toastError(e); }
+}
+
+function recalcPreview() {
+  const form = document.getElementById("billForm");
+  const num = n => Number(form[n].value) || 0;
+  const sub = num("fixed_amount") + num("variable_amount");
+  const sgst = form.sgst.value !== "" ? num("sgst") : sub * 0.06;
+  const cgst = form.cgst.value !== "" ? num("cgst") : sub * 0.06;
+  const tds = form.tds.value !== "" ? num("tds") : sub * 0.01;
+  setText("calcTotal", fmtMoney(sub + sgst + cgst - tds - num("traffic_challan") + num("tollgates")));
+}
+document.getElementById("billForm").addEventListener("input", recalcPreview);
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("billModalTitle").textContent = "Add Bill";
+  const form = document.getElementById("billForm");
+  fillForm(form, null);
+  form.invoice_date.value = today();
+  form.payment_month.value = thisMonth();
+  recalcPreview();
+  openModal("billModal");
+}
+
+function editRecord(id) {
+  const b = bills.find(x => x.bill_id === id);
+  if (!b) return;
+  editingId = id;
+  document.getElementById("billModalTitle").textContent = "Edit " + b.invoice_number;
+  fillForm(document.getElementById("billForm"), b);
+  recalcPreview();
+  openModal("billModal");
+}
+
+async function saveBill() {
+  const data = formData(document.getElementById("billForm"));
+  if (!data.vehicle_number) return toast("Vehicle is required", "error");
+  try {
+    if (editingId) await api(`/api/billing/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/billing", { method: "POST", body: data });
+    closeModal("billModal");
+    toast(editingId ? "Bill updated" : "Bill added");
+    loadBills();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this bill and its payments?")) return;
+  try { await api(`/api/billing/${id}`, { method: "DELETE" }); toast("Bill deleted"); loadBills(); }
+  catch (e) { toastError(e); }
+}
+
+/* ------------------------------------------------ receivables */
+function updateReceivableDropdowns() {
+  const billSel = document.querySelector('#recForm [name="bill_id"]');
+  const invSel = document.querySelector('#recForm [name="invoice_number"]');
+  const open = bills.filter(b => (b.payment_status || "Pending") !== "Paid");
+  billSel.innerHTML = '<option value="">— Whole invoice —</option>' + open.map(b =>
+    `<option value="${esc(b.bill_id)}">${esc(b.invoice_number)} · ${esc(b.vehicle_number)} · Bal ${fmtMoney(b.balance_amount)}</option>`).join("");
+  const invoices = [...new Set(open.map(b => b.invoice_number))];
+  invSel.innerHTML = '<option value="">— Select bill above —</option>' + invoices.map(i =>
+    `<option>${esc(i)}</option>`).join("");
+}
+
+function openReceivable() {
+  const form = document.getElementById("recForm");
+  fillForm(form, null);
+  form.receive_date.value = today();
+  form.payment_month.value = thisMonth();
+  updateReceivableDropdowns();
+  openModal("recModal");
+}
+
+async function saveReceivable() {
+  const data = formData(document.getElementById("recForm"));
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  if (!data.bill_id && !data.invoice_number)
+    return toast("Choose a bill or an invoice", "error");
+  try {
+    const res = await api("/api/receivables", { method: "POST", body: data });
+    closeModal("recModal");
+    toast(res.unallocated ? `Payment saved · ₹${res.unallocated} unallocated` : "Payment saved");
+    loadBills();
+  } catch (e) { toastError(e); }
+}
+
+async function showHistory(billId) {
+  const b = bills.find(x => x.bill_id === billId);
+  document.getElementById("historyTitle").textContent =
+    `Payments · ${b ? b.invoice_number + " · " + (b.vehicle_number || "") : billId}`;
+  openModal("historyModal");
+  try {
+    const rows = await api(`/api/receivables?bill_id=${billId}`);
+    renderRows("historyBody", rows, r => `<tr>
+      <td>${fmtDate(r.receive_date)}</td>
+      <td>${esc(r.payment_month || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(r.amount)}</td>
+      <td>${esc(r.payment_mode || "-")}</td>
+      <td>${esc(r.reference_number || "-")}</td>
+      <td><button class="btn-icon-sm danger admin-only" onclick="deleteReceivable('${r.receivable_id}','${billId}')"><i class="bi bi-trash"></i></button></td>
+    </tr>`, "No payments recorded");
+  } catch (e) { toastError(e); }
+}
+
+async function deleteReceivable(id, billId) {
+  if (!confirm("Delete this payment?")) return;
+  try {
+    await api(`/api/receivables/${id}`, { method: "DELETE" });
+    toast("Payment deleted");
+    showHistory(billId);
+    loadBills();
+  } catch (e) { toastError(e); }
+}
+
+loadBills();
+loadVehicleOptions("fVehicle", document.querySelector('#billForm [name="vehicle_number"]'));
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Purse{% endblock %}
+{% block page_title %}Purse{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Purse / Cash Tracking</h4><div class="sub">Cash given to and spent by TSR and TRR</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Entry</button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="glass-card animate-in">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="stat-icon"><i class="bi bi-person-circle"></i></div>
+      <div><div class="stat-label">TSR Purse</div><div class="stat-value" id="tsrBalance">—</div></div>
+    </div>
+    <div class="d-flex justify-content-between" style="font-size:12.8px">
+      <span class="text-success">Given: <b id="tsrGiven">—</b></span>
+      <span class="text-danger">Spent: <b id="tsrSpent">—</b></span>
+    </div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card animate-in">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="stat-icon"><i class="bi bi-person-circle"></i></div>
+      <div><div class="stat-label">TRR Purse</div><div class="stat-value" id="trrBalance">—</div></div>
+    </div>
+    <div class="d-flex justify-content-between" style="font-size:12.8px">
+      <span class="text-success">Given: <b id="trrGiven">—</b></span>
+      <span class="text-danger">Spent: <b id="trrSpent">—</b></span>
+    </div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="stat-label">Total Purse Balance</div><div class="stat-value" id="totalBalance">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Holder</label>
+    <select class="form-select" id="fHolder" onchange="loadPurse()">
+      <option value="">All</option><option>TSR</option><option>TRR</option></select></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>Holder</th><th>Type</th><th>Description</th>
+        <th>Vehicle</th><th>Category</th><th class="text-end">Amount</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="purseBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="purseModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Purse Entry</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="purseForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="date"></div>
+        <div class="col-6"><label class="form-label">Holder *</label>
+          <select class="form-select" name="holder"><option>TSR</option><option>TRR</option></select></div>
+        <div class="col-6"><label class="form-label">Type *</label>
+          <select class="form-select" name="type">
+            <option value="Credit">Credit (cash given)</option>
+            <option value="Debit">Debit (cash returned/out)</option>
+            <option value="Expense">Expense (spent)</option></select></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+        <div class="col-6"><label class="form-label">Vehicle</label>
+          <select class="form-select" name="vehicle_number"><option value="">— None —</option></select></div>
+        <div class="col-6"><label class="form-label">Category</label>
+          <input class="form-control" name="category"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="savePurse()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadPurse() {
+  setLoading("purseBody");
+  const holder = document.getElementById("fHolder").value;
+  try {
+    const data = await api(`/api/purse?holder=${holder}`);
+    const s = data.summary;
+    setText("tsrBalance", fmtMoney(s.TSR.balance));
+    setText("tsrGiven", fmtMoney(s.TSR.given));
+    setText("tsrSpent", fmtMoney(s.TSR.spent));
+    setText("trrBalance", fmtMoney(s.TRR.balance));
+    setText("trrGiven", fmtMoney(s.TRR.given));
+    setText("trrSpent", fmtMoney(s.TRR.spent));
+    setText("totalBalance", fmtMoney(s.total_balance));
+    renderRows("purseBody", data.rows, p => {
+      const typeCls = p.type === "Credit" ? "success" : p.type === "Expense" ? "warning" : "danger";
+      return `<tr>
+        <td>${fmtDate(p.date)}</td>
+        <td class="fw-bold">${esc(p.holder)}</td>
+        <td><span class="badge-soft ${typeCls}">${esc(p.type)}</span></td>
+        <td>${esc(p.description || "-")}${p.reference_id ? ' <small class="text-muted">(from expense)</small>' : ""}</td>
+        <td>${esc(p.vehicle_number || "-")}</td>
+        <td>${esc(p.category || "-")}</td>
+        <td class="text-end fw-bold ${p.type === "Credit" ? "text-success" : "text-danger"}">
+          ${p.type === "Credit" ? "+" : "−"}${fmtMoney(p.amount)}</td>
+        <td>${p.reference_id ? "" :
+          `<button class="btn-icon-sm danger admin-only" onclick="deletePurse('${p.purse_id}')"><i class="bi bi-trash"></i></button>`}</td>
+      </tr>`;
+    }, "No purse entries yet");
+  } catch (e) { toastError(e); }
+}
+
+function openAdd() {
+  const form = document.getElementById("purseForm");
+  fillForm(form, null);
+  form.date.value = today();
+  openModal("purseModal");
+}
+
+async function savePurse() {
+  const data = formData(document.getElementById("purseForm"));
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    await api("/api/purse", { method: "POST", body: data });
+    closeModal("purseModal");
+    toast("Purse entry added");
+    loadPurse();
+  } catch (e) { toastError(e); }
+}
+
+async function deletePurse(id) {
+  if (!confirm("Delete this purse entry?")) return;
+  try { await api(`/api/purse/${id}`, { method: "DELETE" }); toast("Deleted"); loadPurse(); }
+  catch (e) { toastError(e); }
+}
+
+loadPurse();
+loadVehicleOptions(document.querySelector('#purseForm [name="vehicle_number"]'));
+</script>
+{% endblock %}
