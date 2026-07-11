@@ -73,11 +73,11 @@
         <div class="col-md-3"><label class="form-label">Tollgates (+)</label>
           <input type="number" step="0.01" class="form-control calc" name="tollgates"></div>
         <div class="col-md-2"><label class="form-label">SGST</label>
-          <input type="number" step="0.01" class="form-control" name="sgst" placeholder="auto 6%"></div>
+          <input type="number" step="0.01" class="form-control" name="sgst" placeholder="auto 9%"></div>
         <div class="col-md-2"><label class="form-label">CGST</label>
-          <input type="number" step="0.01" class="form-control" name="cgst" placeholder="auto 6%"></div>
+          <input type="number" step="0.01" class="form-control" name="cgst" placeholder="auto 9%"></div>
         <div class="col-md-2"><label class="form-label">TDS</label>
-          <input type="number" step="0.01" class="form-control" name="tds" placeholder="auto 1%"></div>
+          <input type="number" step="0.01" class="form-control" name="tds" placeholder="auto 2%"></div>
         <div class="col-12"><label class="form-label">Description</label>
           <input class="form-control" name="description"></div>
         <div class="col-12">
@@ -193,9 +193,9 @@ function recalcPreview() {
   const form = document.getElementById("billForm");
   const num = n => Number(form[n].value) || 0;
   const sub = num("fixed_amount") + num("variable_amount");
-  const sgst = form.sgst.value !== "" ? num("sgst") : sub * 0.06;
-  const cgst = form.cgst.value !== "" ? num("cgst") : sub * 0.06;
-  const tds = form.tds.value !== "" ? num("tds") : sub * 0.01;
+  const sgst = form.sgst.value !== "" ? num("sgst") : sub * 0.09;
+  const cgst = form.cgst.value !== "" ? num("cgst") : sub * 0.09;
+  const tds = form.tds.value !== "" ? num("tds") : sub * 0.02;
   setText("calcTotal", fmtMoney(sub + sgst + cgst - tds + num("traffic_challan") + num("tollgates")));
 }
 document.getElementById("billForm").addEventListener("input", recalcPreview);

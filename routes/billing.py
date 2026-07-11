@@ -9,9 +9,9 @@ from utils.templates import render
 
 router = APIRouter(tags=["billing"])
 
-SGST_RATE = 0.06
-CGST_RATE = 0.06
-TDS_RATE = 0.01
+SGST_RATE = 0.09
+CGST_RATE = 0.09
+TDS_RATE = 0.02
 
 
 @router.get("/billing")

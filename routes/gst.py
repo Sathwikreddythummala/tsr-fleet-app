@@ -7,7 +7,7 @@ from utils.templates import render
 
 router = APIRouter(tags=["gst"])
 
-GST_RATE = 0.06  # SGST and CGST each, when not provided explicitly
+GST_RATE = 0.09  # SGST and CGST each, when not provided explicitly
 
 
 @router.get("/gst")
