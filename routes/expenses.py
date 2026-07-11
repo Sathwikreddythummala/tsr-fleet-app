@@ -160,18 +160,26 @@ async def export_pdf(date_from: str = "", date_to: str = "", vehicle: str = "",
                              headers={"Content-Disposition": "attachment; filename=expenses.pdf"})
 
 
+def _split(value):
+    """Parse a comma-separated multi-select filter value into a list."""
+    return [v.strip() for v in (value or "").split(",") if v.strip()]
+
+
 def _filtered(date_from, date_to, vehicle, category, sub_category, search):
     rows = ss.get_all_records("expenses")
     if date_from:
         rows = [e for e in rows if (e.get("expense_date") or "") >= date_from]
     if date_to:
         rows = [e for e in rows if (e.get("expense_date") or "") <= date_to]
-    if vehicle:
-        rows = [e for e in rows if e.get("vehicle_number") == vehicle]
-    if category:
-        rows = [e for e in rows if e.get("category") == category]
-    if sub_category:
-        rows = [e for e in rows if e.get("sub_category") == sub_category]
+    vehicles = _split(vehicle)
+    if vehicles:
+        rows = [e for e in rows if e.get("vehicle_number") in vehicles]
+    categories = _split(category)
+    if categories:
+        rows = [e for e in rows if e.get("category") in categories]
+    sub_categories = _split(sub_category)
+    if sub_categories:
+        rows = [e for e in rows if e.get("sub_category") in sub_categories]
     if search:
         q = search.lower()
         rows = [e for e in rows if q in " ".join(

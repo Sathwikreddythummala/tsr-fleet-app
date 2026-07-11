@@ -114,6 +114,74 @@ function actionButtons(id, extra = "") {
   </td>`;
 }
 
+/* Searchable multi-select dropdown.
+   const ms = multiSelect(containerEl, { placeholder, options, onChange });
+   ms.values() -> ["A", "B"], ms.setOptions([...]) to load options later. */
+function multiSelect(el, { placeholder = "All", options = [], onChange = () => {} } = {}) {
+  if (typeof el === "string") el = document.getElementById(el);
+  el.classList.add("ms-wrap");
+  el.innerHTML = `
+    <button type="button" class="form-control ms-btn text-start"></button>
+    <div class="ms-panel" style="display:none">
+      <input class="form-control form-control-sm ms-search" placeholder="Search...">
+      <div class="ms-list"></div>
+      <div class="ms-actions"><button type="button" class="btn btn-sm btn-ghost ms-clear">Clear all</button></div>
+    </div>`;
+  const btn = el.querySelector(".ms-btn");
+  const panel = el.querySelector(".ms-panel");
+  const search = el.querySelector(".ms-search");
+  const list = el.querySelector(".ms-list");
+  let selected = new Set();
+  let opts = [...options];
+
+  function renderBtn() {
+    btn.textContent = selected.size === 0 ? placeholder
+      : selected.size === 1 ? [...selected][0]
+      : `${selected.size} selected`;
+    btn.classList.toggle("ms-active", selected.size > 0);
+  }
+  function renderList() {
+    const q = search.value.toLowerCase();
+    const visible = opts.filter(o => String(o).toLowerCase().includes(q));
+    list.innerHTML = visible.length ? visible.map(o => `
+      <label class="ms-item"><input type="checkbox" value="${esc(o)}"${selected.has(String(o)) ? " checked" : ""}>
+      <span>${esc(o)}</span></label>`).join("")
+      : '<div class="ms-empty">No matches</div>';
+  }
+  btn.addEventListener("click", () => {
+    const open = panel.style.display !== "none";
+    document.querySelectorAll(".ms-panel").forEach(p => p.style.display = "none");
+    if (!open) {
+      panel.style.display = "block";
+      search.value = "";
+      renderList();
+      search.focus();
+    }
+  });
+  search.addEventListener("input", renderList);
+  list.addEventListener("change", e => {
+    if (e.target.type !== "checkbox") return;
+    e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value);
+    renderBtn();
+    onChange([...selected]);
+  });
+  el.querySelector(".ms-clear").addEventListener("click", () => {
+    selected.clear();
+    renderBtn();
+    renderList();
+    onChange([]);
+  });
+  document.addEventListener("click", e => {
+    if (!el.contains(e.target)) panel.style.display = "none";
+  });
+  renderBtn();
+  return {
+    values: () => [...selected],
+    setOptions: newOpts => { opts = newOpts.map(String); renderList(); },
+    clear: () => { selected.clear(); renderBtn(); onChange([]); },
+  };
+}
+
 function debounce(fn, ms = 350) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };

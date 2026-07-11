@@ -27,13 +27,11 @@
   <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="reload()"></div>
   <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="reload()"></div>
   <div><label class="form-label">Vehicle</label>
-    <select class="form-select" id="fVehicle" onchange="reload()"><option value="">All</option></select></div>
+    <div id="fVehicle"></div></div>
   <div><label class="form-label">Category</label>
-    <select class="form-select" id="fCategory" onchange="reload()"><option value="">All</option>
-      {% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div id="fCategory"></div></div>
   <div><label class="form-label">Sub Category</label>
-    <select class="form-select" id="fSub" onchange="reload()"><option value="">All</option>
-      {% for s in house_subcategories %}<option>{{ s }}</option>{% endfor %}</select></div>
+    <div id="fSub"></div></div>
   <div class="flex-grow-1"><label class="form-label">Search</label>
     <input class="form-control" id="fSearch" placeholder="Description, driver..." oninput="debouncedReload()"></div>
 </div>
@@ -106,13 +104,19 @@ const HOUSE_SUBS = {{ house_subcategories | tojson }};
 let currentRows = [], editingId = null, page = 1, totalRecords = 0;
 const PAGE_SIZE = 25;
 
+const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChange: () => reload() });
+const msCategory = multiSelect("fCategory", { placeholder: "All Categories",
+  options: {{ categories | tojson }}, onChange: () => reload() });
+const msSub = multiSelect("fSub", { placeholder: "All Sub Categories",
+  options: {{ house_subcategories | tojson }}, onChange: () => reload() });
+
 function query() {
   return new URLSearchParams({
     date_from: document.getElementById("fFrom").value,
     date_to: document.getElementById("fTo").value,
-    vehicle: document.getElementById("fVehicle").value,
-    category: document.getElementById("fCategory").value,
-    sub_category: document.getElementById("fSub").value,
+    vehicle: msVehicle.values().join(","),
+    category: msCategory.values().join(","),
+    sub_category: msSub.values().join(","),
     search: document.getElementById("fSearch").value,
     page, page_size: PAGE_SIZE,
   }).toString();
@@ -210,7 +214,8 @@ function exportFile(kind) {
 }
 
 loadExpenses();
-loadVehicleOptions("fVehicle", document.querySelector('#expenseForm [name="vehicle_number"]'));
+loadVehicleOptions(document.querySelector('#expenseForm [name="vehicle_number"]'));
 loadDriverOptions(document.querySelector('#expenseForm [name="driver_name"]'));
+api("/api/vehicles").then(v => msVehicle.setOptions(v.map(x => x.vehicle_number))).catch(() => {});
 </script>
 {% endblock %}
