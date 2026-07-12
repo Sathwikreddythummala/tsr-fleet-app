@@ -45,6 +45,7 @@
       </button>
       <button class="btn btn-link btn-sm text-muted" onclick="resetOtp()">Change number</button>
     </div>
+    <div id="recaptchaBox"></div>
   </div>
 </div>
 
@@ -62,11 +63,30 @@ fbAuth.languageCode = "en";
 let confirmationResult = null;
 let recaptcha = null;
 
+const FIREBASE_ERRORS = {
+  "auth/operation-not-allowed": "Phone sign-in is not enabled in the Firebase console (Authentication > Sign-in method > Phone)",
+  "auth/billing-not-enabled": "Firebase needs the Blaze plan for real SMS - add a test phone number or upgrade billing",
+  "auth/too-many-requests": "Too many attempts from this device - try again later",
+  "auth/invalid-phone-number": "Invalid phone number",
+  "auth/captcha-check-failed": "reCAPTCHA check failed - refresh the page and try again",
+  "auth/invalid-app-credential": "reCAPTCHA token expired - please try again",
+  "auth/quota-exceeded": "SMS quota exceeded for today - try again tomorrow",
+};
+
 function getRecaptcha() {
   if (!recaptcha) {
-    recaptcha = new firebase.auth.RecaptchaVerifier("sendOtpBtn", { size: "invisible" });
+    recaptcha = new firebase.auth.RecaptchaVerifier("recaptchaBox", { size: "invisible" });
   }
   return recaptcha;
+}
+
+function resetRecaptcha() {
+  try { if (recaptcha) recaptcha.clear(); } catch (_) {}
+  recaptcha = null;
+  const old = document.getElementById("recaptchaBox");
+  const fresh = document.createElement("div");
+  fresh.id = "recaptchaBox";
+  old.replaceWith(fresh);
 }
 
 async function sendOtp() {
@@ -83,9 +103,8 @@ async function sendOtp() {
     document.getElementById("otpStep2").style.display = "block";
     document.getElementById("driverOtp").focus();
   } catch (e) {
-    if (recaptcha) { try { recaptcha.clear(); } catch (_) {} recaptcha = null; }
-    toastError(e.code === "auth/too-many-requests"
-      ? new Error("Too many attempts - try again later") : e);
+    resetRecaptcha();
+    toast(FIREBASE_ERRORS[e.code] || e.message || String(e), "error");
   } finally {
     btn.disabled = false;
   }
