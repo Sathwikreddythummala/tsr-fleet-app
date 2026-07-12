@@ -96,6 +96,7 @@ async function sendOtp() {
   try {
     // only spend an SMS if this mobile belongs to an active driver
     await api("/api/driver/check-mobile", { method: "POST", body: { mobile } });
+    resetRecaptcha();  // fresh verifier every attempt - stale tokens cause invalid-app-credential
     confirmationResult = await fbAuth.signInWithPhoneNumber("+91" + mobile, getRecaptcha());
     toast("OTP sent to +91 " + mobile);
     document.getElementById("otpStep1").style.display = "none";
@@ -127,6 +128,7 @@ function resetOtp() {
   document.getElementById("otpStep1").style.display = "block";
   document.getElementById("otpStep2").style.display = "none";
   confirmationResult = null;
+  resetRecaptcha();
 }
 </script>
 {% else %}
