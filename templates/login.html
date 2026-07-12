@@ -45,7 +45,7 @@
       </button>
       <button class="btn btn-link btn-sm text-muted" onclick="resetOtp()">Change number</button>
     </div>
-    <div id="recaptchaBox"></div>
+    <div id="recaptchaBox" style="display:flex;justify-content:center;margin-top:10px"></div>
   </div>
 </div>
 
@@ -84,8 +84,7 @@ function resetRecaptcha() {
   try { if (recaptcha) recaptcha.clear(); } catch (_) {}
   recaptcha = null;
   const old = document.getElementById("recaptchaBox");
-  const fresh = document.createElement("div");
-  fresh.id = "recaptchaBox";
+  const fresh = old.cloneNode(false);  // keeps id and styling, drops the old widget
   old.replaceWith(fresh);
 }
 
