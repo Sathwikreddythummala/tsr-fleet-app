@@ -18,8 +18,9 @@ async def purse_page(request: Request, user=Depends(require_admin_or_viewer)):
 @router.get("/api/purse")
 async def list_purse(holder: str = "", user=Depends(require_admin_or_viewer)):
     rows = ss.get_all_records("purse")
-    if holder:
-        rows = [p for p in rows if p.get("holder") == holder]
+    holders = [h.strip() for h in (holder or "").split(",") if h.strip()]
+    if holders:
+        rows = [p for p in rows if p.get("holder") in holders]
     rows = sorted(rows, key=lambda p: (p.get("date") or "", p.get("created_date") or ""),
                   reverse=True)
     return {"rows": rows, "summary": _summary()}

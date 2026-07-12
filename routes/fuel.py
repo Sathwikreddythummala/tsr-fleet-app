@@ -14,6 +14,11 @@ async def fuel_page(request: Request, user=Depends(require_admin_or_viewer)):
     return render(request, "fuel.html")
 
 
+def _split(value):
+    """Parse a comma-separated multi-select filter value into a list."""
+    return [v.strip() for v in (value or "").split(",") if v.strip()]
+
+
 @router.get("/api/fuel")
 async def list_fuel(date_from: str = "", date_to: str = "", vehicle: str = "",
                     driver: str = "", fuel_type: str = "",
@@ -23,12 +28,15 @@ async def list_fuel(date_from: str = "", date_to: str = "", vehicle: str = "",
         rows = [f for f in rows if (f.get("entry_date") or "") >= date_from]
     if date_to:
         rows = [f for f in rows if (f.get("entry_date") or "") <= date_to]
-    if vehicle:
-        rows = [f for f in rows if f.get("vehicle_number") == vehicle]
-    if driver:
-        rows = [f for f in rows if f.get("driver_name") == driver]
-    if fuel_type:
-        rows = [f for f in rows if f.get("fuel_type") == fuel_type]
+    vehicles = _split(vehicle)
+    if vehicles:
+        rows = [f for f in rows if f.get("vehicle_number") in vehicles]
+    drivers = _split(driver)
+    if drivers:
+        rows = [f for f in rows if f.get("driver_name") in drivers]
+    fuel_types = _split(fuel_type)
+    if fuel_types:
+        rows = [f for f in rows if (f.get("fuel_type") or "Diesel") in fuel_types]
     rows = sorted(rows, key=lambda f: f.get("entry_date") or "", reverse=True)
     return {
         "rows": rows,

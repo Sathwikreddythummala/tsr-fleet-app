@@ -28,10 +28,9 @@
 
 <div class="glass-card filter-bar mb-3 animate-in">
   <div><label class="form-label">Vehicle</label>
-    <select class="form-select" id="fVehicle" onchange="loadBills()"><option value="">All</option></select></div>
+    <div id="fVehicle"></div></div>
   <div><label class="form-label">Status</label>
-    <select class="form-select" id="fStatus" onchange="loadBills()">
-      <option value="">All</option><option>Pending</option><option>Partial</option><option>Paid</option></select></div>
+    <div id="fStatus"></div></div>
   <div><label class="form-label">Month</label>
     <input type="month" class="form-control" id="fMonth" onchange="loadBills()"></div>
 </div>
@@ -149,11 +148,15 @@
 <script>
 let bills = [], editingId = null;
 
+const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChange: () => loadBills() });
+const msStatus = multiSelect("fStatus", { placeholder: "All Statuses",
+  options: ["Pending", "Partial", "Paid"], onChange: () => loadBills() });
+
 async function loadBills() {
   setLoading("billBody");
   const params = new URLSearchParams({
-    vehicle: document.getElementById("fVehicle").value,
-    status: document.getElementById("fStatus").value,
+    vehicle: msVehicle.values().join(","),
+    status: msStatus.values().join(","),
     month: document.getElementById("fMonth").value,
   });
   try {
@@ -302,6 +305,7 @@ async function deleteReceivable(id, billId) {
 }
 
 loadBills();
-loadVehicleOptions("fVehicle", document.querySelector('#billForm [name="vehicle_number"]'));
+loadVehicleOptions(document.querySelector('#billForm [name="vehicle_number"]'));
+api("/api/vehicles").then(v => msVehicle.setOptions(v.map(x => x.vehicle_number))).catch(() => {});
 </script>
 {% endblock %}

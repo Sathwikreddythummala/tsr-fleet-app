@@ -18,6 +18,36 @@ CATEGORIES = ["Fuel", "Driver Expense", "Tyres", "Maintenance", "EMI", "Fastag",
 HOUSE_SUBCATEGORIES = ["Rent", "Electricity", "Groceries", "Repairs", "Water",
                        "Family Expense", "Medical", "School/College Fees",
                        "Function Expense", "Other"]
+
+# per-category subcategories for a fleet/vehicle maintenance business
+SUBCATEGORIES = {
+    "Fuel": ["Diesel", "Petrol", "CNG", "AdBlue", "Other"],
+    "Driver Expense": ["Daily Bata", "Food", "Accommodation", "Advance",
+                       "Medical", "Mobile Recharge", "Other"],
+    "Tyres": ["New Tyre", "Retreading", "Puncture Repair", "Wheel Alignment",
+              "Wheel Balancing", "Tube/Flap", "Other"],
+    "Maintenance": ["General Service", "Engine Oil Change", "Oil/Air Filter",
+                    "Engine Repair", "Clutch Work", "Brake Work",
+                    "Gearbox/Transmission", "Suspension/Spring Work",
+                    "Electrical Work", "Battery", "Radiator/Cooling",
+                    "AC Repair", "Body Work/Denting", "Painting",
+                    "Windshield/Glass", "Greasing", "Welding Work",
+                    "Spare Parts", "Other"],
+    "EMI": ["Vehicle EMI", "Other EMI"],
+    "Fastag": ["Recharge", "New Tag", "Other"],
+    "Insurance": ["New Policy", "Renewal", "Claim Expense", "Other"],
+    "Permit": ["National Permit", "State Permit", "Permit Renewal", "Road Tax",
+               "Fitness Fee", "PUC", "RTO Charges", "Other"],
+    "Accident": ["Accident Repair", "Towing", "Third Party Payment",
+                 "Legal/FIR Expense", "Other"],
+    "Penalty": ["Traffic Challan", "Overload Fine", "RTO Fine", "Other"],
+    "Helper Expense": ["Salary", "Food", "Advance", "Other"],
+    "Office Expense": ["Rent", "Electricity", "Internet/Phone", "Stationery",
+                       "Software", "Staff Welfare", "Travel", "Other"],
+    "House Expense": HOUSE_SUBCATEGORIES,
+    "Other": ["Other"],
+}
+
 PURSE_HOLDERS = ("TSR", "TRR")
 
 
@@ -25,7 +55,7 @@ PURSE_HOLDERS = ("TSR", "TRR")
 async def expenses_page(request: Request, user=Depends(require_admin_or_viewer)):
     return render(request, "expenses.html", {
         "expense_types": EXPENSE_TYPES, "categories": CATEGORIES,
-        "house_subcategories": HOUSE_SUBCATEGORIES,
+        "subcategories": SUBCATEGORIES,
     })
 
 

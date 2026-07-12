@@ -37,8 +37,7 @@
 
 <div class="glass-card filter-bar mb-3 animate-in">
   <div><label class="form-label">Holder</label>
-    <select class="form-select" id="fHolder" onchange="loadPurse()">
-      <option value="">All</option><option>TSR</option><option>TRR</option></select></div>
+    <div id="fHolder"></div></div>
 </div>
 
 <div class="glass-card table-card animate-in">
@@ -88,9 +87,12 @@
 
 {% block scripts %}
 <script>
+const msHolder = multiSelect("fHolder", { placeholder: "All Holders",
+  options: ["TSR", "TRR"], onChange: () => loadPurse() });
+
 async function loadPurse() {
   setLoading("purseBody");
-  const holder = document.getElementById("fHolder").value;
+  const holder = msHolder.values().join(",");
   try {
     const data = await api(`/api/purse?holder=${holder}`);
     const s = data.summary;

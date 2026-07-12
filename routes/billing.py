@@ -19,14 +19,21 @@ async def billing_page(request: Request, user=Depends(require_admin_or_viewer)):
     return render(request, "billing.html")
 
 
+def _split(value):
+    """Parse a comma-separated multi-select filter value into a list."""
+    return [v.strip() for v in (value or "").split(",") if v.strip()]
+
+
 @router.get("/api/billing")
 async def list_bills(vehicle: str = "", status: str = "", month: str = "",
                      user=Depends(require_admin_or_viewer)):
     rows = ss.get_all_records("billing")
-    if vehicle:
-        rows = [b for b in rows if b.get("vehicle_number") == vehicle]
-    if status:
-        rows = [b for b in rows if b.get("payment_status") == status]
+    vehicles = _split(vehicle)
+    if vehicles:
+        rows = [b for b in rows if b.get("vehicle_number") in vehicles]
+    statuses = _split(status)
+    if statuses:
+        rows = [b for b in rows if (b.get("payment_status") or "Pending") in statuses]
     if month:
         rows = [b for b in rows if b.get("payment_month") == month]
     rows = sorted(rows, key=lambda b: b.get("invoice_date") or "", reverse=True)

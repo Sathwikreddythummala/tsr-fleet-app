@@ -100,7 +100,7 @@
 
 {% block scripts %}
 <script>
-const HOUSE_SUBS = {{ house_subcategories | tojson }};
+const SUBCATS = {{ subcategories | tojson }};
 let currentRows = [], editingId = null, page = 1, totalRecords = 0;
 const PAGE_SIZE = 25;
 
@@ -108,7 +108,7 @@ const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChang
 const msCategory = multiSelect("fCategory", { placeholder: "All Categories",
   options: {{ categories | tojson }}, onChange: () => reload() });
 const msSub = multiSelect("fSub", { placeholder: "All Sub Categories",
-  options: {{ house_subcategories | tojson }}, onChange: () => reload() });
+  options: [...new Set(Object.values(SUBCATS).flat())].sort(), onChange: () => reload() });
 
 function query() {
   return new URLSearchParams({
@@ -156,11 +156,9 @@ function changePage(dir) {
 
 function onCategoryChange(cat) {
   const sub = document.querySelector('#expenseForm [name="sub_category"]');
-  if (cat === "House Expense") {
-    sub.innerHTML = HOUSE_SUBS.map(s => `<option>${s}</option>`).join("");
-  } else {
-    sub.innerHTML = '<option value="">— None —</option>';
-  }
+  const list = SUBCATS[cat] || [];
+  sub.innerHTML = '<option value="">— None —</option>' +
+    list.map(s => `<option>${s}</option>`).join("");
 }
 function onExpenseForChange(val) {
   if (val === "House Expense") {

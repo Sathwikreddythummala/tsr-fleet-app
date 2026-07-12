@@ -15,12 +15,9 @@
   <div><label class="form-label">Search</label>
     <input class="form-control" id="fSearch" placeholder="Name, mobile, vehicle..." oninput="applyFilters()"></div>
   <div><label class="form-label">Type</label>
-    <select class="form-select" id="fType" onchange="applyFilters()">
-      <option value="">All</option><option>Driver</option><option>Helper</option>
-      <option>Office Staff</option><option>Other</option></select></div>
+    <div id="fType"></div></div>
   <div><label class="form-label">Status</label>
-    <select class="form-select" id="fStatus" onchange="applyFilters()">
-      <option value="">All</option><option>Active</option><option>Exit</option></select></div>
+    <div id="fStatus"></div></div>
 </div>
 
 <div class="glass-card table-card animate-in">
@@ -90,6 +87,11 @@
 <script>
 let drivers = [], editingId = null;
 
+const msType = multiSelect("fType", { placeholder: "All Types",
+  options: ["Driver", "Helper", "Office Staff", "Other"], onChange: () => applyFilters() });
+const msStatus = multiSelect("fStatus", { placeholder: "All Statuses",
+  options: ["Active", "Exit"], onChange: () => applyFilters() });
+
 async function loadDrivers() {
   setLoading("driverBody");
   try { drivers = await api("/api/drivers"); applyFilters(); }
@@ -98,12 +100,12 @@ async function loadDrivers() {
 
 function applyFilters() {
   const q = document.getElementById("fSearch").value.toLowerCase();
-  const type = document.getElementById("fType").value;
-  const status = document.getElementById("fStatus").value;
+  const types = msType.values();
+  const statuses = msStatus.values();
   let rows = drivers;
   if (q) rows = rows.filter(d => `${d.driver_name} ${d.mobile_number} ${d.assigned_vehicle}`.toLowerCase().includes(q));
-  if (type) rows = rows.filter(d => (d.employee_type || "Driver") === type);
-  if (status) rows = rows.filter(d => (d.status || "Active") === status);
+  if (types.length) rows = rows.filter(d => types.includes(d.employee_type || "Driver"));
+  if (statuses.length) rows = rows.filter(d => statuses.includes(d.status || "Active"));
   renderRows("driverBody", rows, d => {
     const expiry = d.license_expiry_date;
     const days = expiry ? Math.floor((new Date(expiry) - new Date()) / 86400000) : null;

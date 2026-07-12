@@ -12,9 +12,7 @@
   <div><label class="form-label">Search</label>
     <input class="form-control" id="fSearch" placeholder="Vehicle number, driver..." oninput="applyFilters()"></div>
   <div><label class="form-label">Status</label>
-    <select class="form-select" id="fStatus" onchange="applyFilters()">
-      <option value="">All</option><option>Active</option><option>Inactive</option><option>Sold</option>
-    </select></div>
+    <div id="fStatus"></div></div>
 </div>
 
 <div class="glass-card table-card animate-in">
@@ -99,6 +97,9 @@
 <script>
 let vehicles = [], editingId = null;
 
+const msStatus = multiSelect("fStatus", { placeholder: "All Statuses",
+  options: ["Active", "Inactive", "Sold"], onChange: () => applyFilters() });
+
 function expiryBadge(dateStr) {
   if (!dateStr) return '<span class="badge-soft muted">—</span>';
   const days = Math.floor((new Date(dateStr) - new Date()) / 86400000);
@@ -115,10 +116,10 @@ async function loadVehicles() {
 
 function applyFilters() {
   const q = document.getElementById("fSearch").value.toLowerCase();
-  const status = document.getElementById("fStatus").value;
+  const statuses = msStatus.values();
   let rows = vehicles;
   if (q) rows = rows.filter(v => `${v.vehicle_number} ${v.default_driver} ${v.vehicle_type}`.toLowerCase().includes(q));
-  if (status) rows = rows.filter(v => (v.vehicle_status || "Active") === status);
+  if (statuses.length) rows = rows.filter(v => statuses.includes(v.vehicle_status || "Active"));
   renderRows("vehicleBody", rows, v => `<tr>
     <td><a href="/vehicles/${v.vehicle_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(v.vehicle_number)}</a></td>
     <td>${esc(v.vehicle_type || "-")}</td>

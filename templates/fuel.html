@@ -27,12 +27,11 @@
   <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="loadFuel()"></div>
   <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="loadFuel()"></div>
   <div><label class="form-label">Vehicle</label>
-    <select class="form-select" id="fVehicle" onchange="loadFuel()"><option value="">All</option></select></div>
+    <div id="fVehicle"></div></div>
   <div><label class="form-label">Driver</label>
-    <select class="form-select" id="fDriver" onchange="loadFuel()"><option value="">All</option></select></div>
+    <div id="fDriver"></div></div>
   <div><label class="form-label">Fuel Type</label>
-    <select class="form-select" id="fType" onchange="loadFuel()">
-      <option value="">All</option><option>Diesel</option><option>Petrol</option><option>CNG</option></select></div>
+    <div id="fType"></div></div>
 </div>
 
 <div class="row g-3 mb-4">
@@ -98,14 +97,19 @@
 <script>
 let fuelRows = [], editingId = null;
 
+const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChange: () => loadFuel() });
+const msDriver = multiSelect("fDriver", { placeholder: "All Drivers", onChange: () => loadFuel() });
+const msType = multiSelect("fType", { placeholder: "All Fuel Types",
+  options: ["Diesel", "Petrol", "CNG"], onChange: () => loadFuel() });
+
 async function loadFuel() {
   setLoading("fuelBody");
   const params = new URLSearchParams({
     date_from: document.getElementById("fFrom").value,
     date_to: document.getElementById("fTo").value,
-    vehicle: document.getElementById("fVehicle").value,
-    driver: document.getElementById("fDriver").value,
-    fuel_type: document.getElementById("fType").value,
+    vehicle: msVehicle.values().join(","),
+    driver: msDriver.values().join(","),
+    fuel_type: msType.values().join(","),
   });
   try {
     const data = await api(`/api/fuel?${params}`);
@@ -196,7 +200,10 @@ async function deleteRecord(id) {
 
 loadFuel();
 loadCharts();
-loadVehicleOptions("fVehicle", document.querySelector('#fuelForm [name="vehicle_number"]'));
-loadDriverOptions("fDriver", document.querySelector('#fuelForm [name="driver_name"]'));
+loadVehicleOptions(document.querySelector('#fuelForm [name="vehicle_number"]'));
+loadDriverOptions(document.querySelector('#fuelForm [name="driver_name"]'));
+api("/api/vehicles").then(v => msVehicle.setOptions(v.map(x => x.vehicle_number))).catch(() => {});
+api("/api/drivers").then(d => msDriver.setOptions(
+  d.filter(x => (x.status || "Active") === "Active").map(x => x.driver_name))).catch(() => {});
 </script>
 {% endblock %}
