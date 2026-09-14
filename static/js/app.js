@@ -148,11 +148,31 @@ function multiSelect(el, { placeholder = "All", options = [], onChange = () => {
       <span>${esc(o)}</span></label>`).join("")
       : '<div class="ms-empty">No matches</div>';
   }
+  /* An open panel must escape the card it lives in: sibling cards use
+     backdrop-filter, which creates stacking contexts that would otherwise
+     paint over the dropdown. Lift the host card while the panel is open. */
+  function closeAll() {
+    document.querySelectorAll(".ms-panel").forEach(p => p.style.display = "none");
+    document.querySelectorAll(".ms-open").forEach(w => w.classList.remove("ms-open"));
+    document.querySelectorAll(".ms-host-open").forEach(h => h.classList.remove("ms-host-open"));
+  }
+
+  function hostCard() {
+    return el.closest(".glass-card, .filter-bar, .modal-content");
+  }
+
   btn.addEventListener("click", () => {
     const open = panel.style.display !== "none";
-    document.querySelectorAll(".ms-panel").forEach(p => p.style.display = "none");
+    closeAll();
     if (!open) {
       panel.style.display = "block";
+      el.classList.add("ms-open");
+      const host = hostCard();
+      if (host) host.classList.add("ms-host-open");
+      // flip upwards when there is not enough room below
+      const room = window.innerHeight - btn.getBoundingClientRect().bottom;
+      panel.style.top = room < 300 ? "auto" : "calc(100% + 6px)";
+      panel.style.bottom = room < 300 ? "calc(100% + 6px)" : "auto";
       search.value = "";
       renderList();
       search.focus();
@@ -172,7 +192,15 @@ function multiSelect(el, { placeholder = "All", options = [], onChange = () => {
     onChange([]);
   });
   document.addEventListener("click", e => {
-    if (!el.contains(e.target)) panel.style.display = "none";
+    if (!el.contains(e.target) && panel.style.display !== "none") {
+      panel.style.display = "none";
+      el.classList.remove("ms-open");
+      const host = hostCard();
+      if (host) host.classList.remove("ms-host-open");
+    }
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && panel.style.display !== "none") closeAll();
   });
   renderBtn();
   return {
@@ -180,6 +208,34 @@ function multiSelect(el, { placeholder = "All", options = [], onChange = () => {
     setOptions: newOpts => { opts = newOpts.map(String); renderList(); },
     clear: () => { selected.clear(); renderBtn(); onChange([]); },
   };
+}
+
+/* Month picker paired with a From/To range: choosing a month clears the
+   range and choosing a range clears the month, so only one is ever active. */
+function linkMonthAndRange({ month, from, to, onChange }) {
+  const monthEl = document.getElementById(month);
+  const fromEl = document.getElementById(from);
+  const toEl = document.getElementById(to);
+  if (!monthEl) return;
+
+  monthEl.addEventListener("change", () => {
+    if (monthEl.value) {
+      if (fromEl) fromEl.value = "";
+      if (toEl) toEl.value = "";
+    }
+    onChange();
+  });
+  [fromEl, toEl].forEach(el => el && el.addEventListener("change", () => {
+    if (el.value) monthEl.value = "";
+    onChange();
+  }));
+}
+
+/* Shift a "YYYY-MM" string by a number of months. */
+function shiftMonthStr(month, delta) {
+  const [y, m] = String(month || thisMonth()).split("-").map(Number);
+  const idx = y * 12 + (m - 1) + delta;
+  return `${String(Math.floor(idx / 12)).padStart(4, "0")}-${String(idx % 12 + 1).padStart(2, "0")}`;
 }
 
 function debounce(fn, ms = 350) {

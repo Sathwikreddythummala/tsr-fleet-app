@@ -1,31 +1,35 @@
-"""Dashboard page, summary calculations and expiry/due alerts."""
+"""Dashboard: KPIs, charts, recent activity and the alerts feed."""
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from services import sheets_service as ss
-from utils.permissions import require_admin_or_viewer
+from utils.permissions import require_view
 from utils.templates import render
 
 router = APIRouter(tags=["dashboard"])
 
+EXPIRY_WINDOW_DAYS = 30
+EMI_WINDOW_DAYS = 7
+
 
 @router.get("/")
 async def home(request: Request):
-    user = request.session.get("user")
-    if not user:
+    if request.session.get("portal_driver") and not request.session.get("user"):
+        return RedirectResponse("/driver-portal")
+    if not request.session.get("user"):
         return RedirectResponse("/login")
-    return RedirectResponse("/driver-portal" if user.get("role") == "driver" else "/dashboard")
+    return RedirectResponse("/dashboard")
 
 
 @router.get("/dashboard")
-async def dashboard_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def dashboard_page(request: Request, user=Depends(require_view)):
     return render(request, "dashboard.html")
 
 
-@router.get("/api/dashboard/summary")
-async def dashboard_summary(user=Depends(require_admin_or_viewer)):
+@router.get("/api/dashboard/stats")
+async def dashboard_stats(user=Depends(require_view)):
     today = ss.today_str()
     month = ss.this_month()
 
@@ -40,91 +44,137 @@ async def dashboard_summary(user=Depends(require_admin_or_viewer)):
     mithi_payments = ss.get_all_records("mithipayments")
 
     total_expense = sum(ss.to_float(e.get("amount")) for e in expenses)
-    total_income = (sum(ss.to_float(i.get("amount")) for i in income)
-                    + sum(ss.to_float(b.get("paid_amount")) for b in billing))
+    house_expense = sum(ss.to_float(e.get("amount")) for e in expenses
+                        if e.get("category") == "House Expense")
+    received = sum(ss.to_float(b.get("paid_amount")) for b in billing)
+    total_income = received + sum(ss.to_float(i.get("amount")) for i in income)
 
     purse_stats = {}
+    linked = {p.get("reference_id") for p in purse if p.get("reference_id")}
     for holder in ("TSR", "TRR"):
         entries = [p for p in purse if p.get("holder") == holder]
-        given = sum(ss.to_float(p.get("amount")) for p in entries if p.get("type") == "Credit")
-        spent = sum(ss.to_float(p.get("amount")) for p in entries if p.get("type") in ("Debit", "Expense"))
-        spent += sum(ss.to_float(e.get("amount")) for e in expenses if e.get("paid_by") == holder)
-        purse_stats[holder] = {"given": given, "spent": spent, "balance": given - spent}
+        given = sum(ss.to_float(p.get("amount")) for p in entries
+                    if p.get("type") in ("Credit", "In"))
+        spent = sum(ss.to_float(p.get("amount")) for p in entries
+                    if p.get("type") in ("Debit", "Out", "Expense"))
+        spent += sum(ss.to_float(e.get("amount")) for e in expenses
+                     if e.get("paid_by") == holder
+                     and e.get("expense_id") not in linked)
+        purse_stats[holder] = {"given": round(given, 2), "spent": round(spent, 2),
+                               "balance": round(given - spent, 2)}
 
     active_mithi = [m for m in mithi_persons if (m.get("status") or "Active") != "Closed"]
-    mithi_collected = sum(ss.to_float(p.get("mithi_amount")) for p in mithi_payments)
-    pending_mithi = 0.0
-    pending_main = 0.0
-    now = datetime.now()
+    pending_mithi = pending_main = 0.0
+    now = datetime.now(ss.IST).replace(tzinfo=None)
     for person in active_mithi:
         pending_main += ss.to_float(person.get("main_amount"))
         monthly = ss.to_float(person.get("monthly_mithi_amount"))
-        start = _parse_date(person.get("start_date"))
+        start = ss.parse_date(person.get("start_date"))
         if start and monthly:
-            months_due = max(0, (now.year - start.year) * 12 + (now.month - start.month) + 1)
+            months_due = max(0, (now.year - start.year) * 12
+                             + (now.month - start.month) + 1)
             paid = sum(ss.to_float(p.get("mithi_amount")) for p in mithi_payments
                        if p.get("mithi_person_id") == person.get("mithi_person_id"))
             pending_mithi += max(0.0, months_due * monthly - paid)
 
-    recent = sorted(expenses, key=lambda e: e.get("expense_date") or "", reverse=True)[:8]
-
-    # last 6 months expense vs income chart data
-    months, expense_series, income_series = [], [], []
-    for offset in range(5, -1, -1):
-        ref = (now.replace(day=1) - timedelta(days=offset * 28)).strftime("%Y-%m")
-        if ref in months:
-            continue
-        months.append(ref)
-    months = sorted(set(months))[-6:]
-    for m in months:
-        expense_series.append(sum(ss.to_float(e.get("amount")) for e in expenses
-                                  if (e.get("expense_date") or "").startswith(m)))
-        income_series.append(sum(ss.to_float(r.get("amount")) for r in ss.get_all_records("receivables")
-                                 if (r.get("receive_date") or "").startswith(m)))
-
-    category_totals = {}
-    for e in expenses:
-        cat = e.get("category") or "Other"
-        category_totals[cat] = category_totals.get(cat, 0) + ss.to_float(e.get("amount"))
+    unpaid_fuel = [f for f in fuel if (f.get("payment_status") or "Paid") == "Unpaid"]
 
     return {
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "total_balance": total_income - total_expense,
-        "today_expense": sum(ss.to_float(e.get("amount")) for e in expenses
-                             if e.get("expense_date") == today),
-        "monthly_expense": sum(ss.to_float(e.get("amount")) for e in expenses
-                               if (e.get("expense_date") or "").startswith(month)),
-        "total_billing": sum(ss.to_float(b.get("total_amount")) for b in billing),
-        "total_received": sum(ss.to_float(b.get("paid_amount")) for b in billing),
-        "total_outstanding": sum(ss.to_float(b.get("balance_amount")) for b in billing),
-        "total_fuel_litres": sum(ss.to_float(f.get("litres")) for f in fuel),
-        "total_fuel_amount": sum(ss.to_float(f.get("amount")) for f in fuel),
-        "active_vehicles": sum(1 for v in vehicles if (v.get("vehicle_status") or "Active") == "Active"),
-        "active_drivers": sum(1 for d in drivers if (d.get("status") or "Active") == "Active"),
+        "total_income": round(total_income, 2),
+        "total_expense": round(total_expense, 2),
+        "total_balance": round(total_income - total_expense, 2),
+        "today_expense": round(sum(ss.to_float(e.get("amount")) for e in expenses
+                                   if e.get("expense_date") == today), 2),
+        "monthly_expense": round(sum(ss.to_float(e.get("amount")) for e in expenses
+                                     if (e.get("expense_date") or "").startswith(month)), 2),
+        "house_expense": round(house_expense, 2),
+        "house_expense_month": round(sum(ss.to_float(e.get("amount")) for e in expenses
+                                         if e.get("category") == "House Expense"
+                                         and (e.get("expense_date") or "").startswith(month)), 2),
+        "total_billing": round(sum(ss.to_float(b.get("total_amount")) for b in billing), 2),
+        "total_received": round(received, 2),
+        "total_outstanding": round(sum(ss.to_float(b.get("balance_amount"))
+                                       for b in billing), 2),
+        "trip_income": round(sum(ss.to_float(i.get("amount")) for i in income), 2),
+        "total_fuel_litres": round(sum(ss.to_float(f.get("litres")) for f in fuel), 2),
+        "total_fuel_amount": round(sum(ss.to_float(f.get("amount")) for f in fuel), 2),
+        "fuel_credit": round(sum(ss.to_float(f.get("amount")) for f in unpaid_fuel), 2),
+        "active_vehicles": sum(1 for v in vehicles
+                               if (v.get("vehicle_status") or "Active") == "Active"),
+        "active_drivers": sum(1 for d in drivers
+                              if (d.get("status") or "Active") == "Active"),
         "purse": purse_stats,
-        "purse_balance": sum(s["balance"] for s in purse_stats.values()),
-        "mithi_collected": mithi_collected,
-        "mithi_pending": pending_mithi,
-        "main_amount_pending": pending_main,
+        "purse_balance": round(sum(s["balance"] for s in purse_stats.values()), 2),
+        "mithi_collected": round(sum(ss.to_float(p.get("mithi_amount"))
+                                     for p in mithi_payments), 2),
+        "mithi_pending": round(pending_mithi, 2),
+        "main_amount_pending": round(pending_main, 2),
         "active_mithi_persons": len(active_mithi),
         "closed_mithi_persons": len(mithi_persons) - len(active_mithi),
-        "recent_expenses": recent,
-        "chart_months": months,
-        "chart_expense": expense_series,
-        "chart_income": income_series,
-        "chart_categories": category_totals,
     }
 
 
+# the original endpoint name is kept so older bookmarks keep working
+@router.get("/api/dashboard/summary")
+async def dashboard_summary(user=Depends(require_view)):
+    stats = await dashboard_stats(user)
+    charts = await dashboard_charts(user)
+    recent = await recent_expenses(user=user)
+    return {**stats, **charts, "recent_expenses": recent["rows"]}
+
+
+@router.get("/api/dashboard/charts")
+async def dashboard_charts(user=Depends(require_view)):
+    expenses = ss.get_all_records("expenses")
+    receivables = ss.get_all_records("receivables")
+    income = ss.get_all_records("income")
+
+    months = []
+    current = ss.this_month()
+    for offset in range(5, -1, -1):
+        months.append(ss.shift_month(current, -offset))
+
+    expense_series, income_series = [], []
+    for m in months:
+        expense_series.append(round(sum(ss.to_float(e.get("amount")) for e in expenses
+                                        if (e.get("expense_date") or "").startswith(m)), 2))
+        revenue = sum(ss.to_float(r.get("amount")) for r in receivables
+                      if (r.get("receive_date") or "").startswith(m))
+        revenue += sum(ss.to_float(i.get("amount")) for i in income
+                       if (i.get("income_date") or "").startswith(m))
+        income_series.append(round(revenue, 2))
+
+    categories = {}
+    for e in expenses:
+        key = e.get("category") or "Other"
+        categories[key] = categories.get(key, 0) + ss.to_float(e.get("amount"))
+
+    return {
+        "chart_months": months,
+        "chart_month_names": [ss.month_name(m) for m in months],
+        "chart_expense": expense_series,
+        "chart_income": income_series,
+        "chart_categories": {k: round(v, 2) for k, v in
+                             sorted(categories.items(), key=lambda x: -x[1])[:8]},
+    }
+
+
+@router.get("/api/dashboard/recent-expenses")
+async def recent_expenses(limit: int = 8, user=Depends(require_view)):
+    rows = sorted(ss.get_all_records("expenses"),
+                  key=lambda e: (e.get("expense_date") or "",
+                                 e.get("created_date") or ""), reverse=True)
+    return {"rows": rows[:max(1, min(limit, 50))]}
+
+
 @router.get("/api/dashboard/alerts")
-async def dashboard_alerts(user=Depends(require_admin_or_viewer)):
+async def dashboard_alerts(user=Depends(require_view)):
     alerts = []
-    now = datetime.now()
-    soon = now + timedelta(days=30)
+    now = datetime.now(ss.IST).replace(tzinfo=None)
+    soon = now + timedelta(days=EXPIRY_WINDOW_DAYS)
 
     def expiry_alert(date_str, label, entity, icon):
-        date = _parse_date(date_str)
+        date = ss.parse_date(date_str)
         if not date:
             return
         if date < now:
@@ -137,28 +187,27 @@ async def dashboard_alerts(user=Depends(require_admin_or_viewer)):
     for v in ss.get_all_records("vehicles"):
         if (v.get("vehicle_status") or "Active") != "Active":
             continue
-        num = v.get("vehicle_number") or v.get("vehicle_id")
-        expiry_alert(v.get("rc_expiry"), "RC", num, "bi-card-text")
-        expiry_alert(v.get("insurance_expiry_date"), "Insurance", num, "bi-shield-check")
-        expiry_alert(v.get("permit_expiry_date"), "Permit", num, "bi-file-earmark-check")
-        expiry_alert(v.get("fitness_expiry_date"), "Fitness", num, "bi-heart-pulse")
-        expiry_alert(v.get("puc_expiry_date"), "PUC", num, "bi-cloud-haze2")
+        number = v.get("vehicle_number") or v.get("vehicle_id")
+        expiry_alert(v.get("rc_expiry"), "RC", number, "bi-card-text")
+        expiry_alert(v.get("insurance_expiry_date"), "Insurance", number,
+                     "bi-shield-check")
+        expiry_alert(v.get("permit_expiry_date"), "Permit", number,
+                     "bi-file-earmark-check")
+        expiry_alert(v.get("fitness_expiry_date"), "Fitness", number, "bi-heart-pulse")
+        expiry_alert(v.get("puc_expiry_date"), "PUC", number, "bi-cloud-haze2")
+        if (v.get("loan_available") or "").lower() in ("yes", "true") and v.get("emi_date"):
+            _emi_due_alert(alerts, v.get("emi_date"),
+                           f"{v.get('vehicle_number')} vehicle EMI", now)
 
     for d in ss.get_all_records("drivers"):
         if (d.get("status") or "Active") == "Active":
             expiry_alert(d.get("license_expiry_date"), "License",
                          d.get("driver_name") or d.get("driver_id"), "bi-person-vcard")
 
-    # EMI due within 7 days (vehicle loans + other EMIs)
-    for v in ss.get_all_records("vehicles"):
-        if (v.get("loan_available") or "").lower() in ("yes", "true") and v.get("emi_date"):
-            _emi_due_alert(alerts, v.get("emi_date"),
-                           f"{v.get('vehicle_number')} vehicle EMI", now)
     for e in ss.get_all_records("otheremis"):
         if (e.get("status") or "Active") == "Active" and e.get("emi_date"):
             _emi_due_alert(alerts, e.get("emi_date"), e.get("emi_name") or "EMI", now)
 
-    # Mithi payment pending for the current month
     month = ss.this_month()
     payments = ss.get_all_records("mithipayments")
     for person in ss.get_all_records("mithipersons"):
@@ -168,7 +217,14 @@ async def dashboard_alerts(user=Depends(require_admin_or_viewer)):
                    and p.get("payment_month") == month for p in payments)
         if not paid:
             alerts.append({"level": "warning", "icon": "bi-cash-coin",
-                           "text": f"Mithi pending for {person.get('person_name')} ({month})"})
+                           "text": f"Mithi pending for {person.get('person_name')}"
+                                   f" ({ss.month_name(month)})"})
+
+    credit = sum(ss.to_float(f.get("amount")) for f in ss.get_all_records("fuelentries")
+                 if (f.get("payment_status") or "Paid") == "Unpaid")
+    if credit > 0:
+        alerts.append({"level": "warning", "icon": "bi-fuel-pump",
+                       "text": f"Fuel credit (Katha) outstanding: ₹{credit:,.0f}"})
 
     return {"alerts": alerts, "count": len(alerts)}
 
@@ -176,18 +232,9 @@ async def dashboard_alerts(user=Depends(require_admin_or_viewer)):
 def _emi_due_alert(alerts, emi_day, label, now):
     try:
         day = int(str(emi_day).strip())
-    except ValueError:
+    except (ValueError, TypeError):
         return
     days_left = day - now.day
-    if 0 <= days_left <= 7:
+    if 0 <= days_left <= EMI_WINDOW_DAYS:
         alerts.append({"level": "warning", "icon": "bi-bank",
                        "text": f"{label} due on day {day} of this month"})
-
-
-def _parse_date(value):
-    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(str(value or "").strip()[:10], fmt)
-        except ValueError:
-            continue
-    return None

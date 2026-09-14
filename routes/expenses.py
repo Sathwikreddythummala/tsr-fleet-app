@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from services import sheets_service as ss
 from utils import duplicate_check
-from utils.permissions import require_admin, require_admin_or_viewer
+from utils.permissions import require_editor, require_view
 from utils.templates import render
 
 router = APIRouter(tags=["expenses"])
@@ -52,7 +52,7 @@ PURSE_HOLDERS = ("TSR", "TRR")
 
 
 @router.get("/expenses")
-async def expenses_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def expenses_page(request: Request, user=Depends(require_view)):
     return render(request, "expenses.html", {
         "expense_types": EXPENSE_TYPES, "categories": CATEGORIES,
         "subcategories": SUBCATEGORIES,
@@ -62,9 +62,9 @@ async def expenses_page(request: Request, user=Depends(require_admin_or_viewer))
 @router.get("/api/expenses")
 async def list_expenses(date_from: str = "", date_to: str = "", vehicle: str = "",
                         category: str = "", sub_category: str = "", search: str = "",
-                        page: int = 1, page_size: int = 25,
-                        user=Depends(require_admin_or_viewer)):
-    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search)
+                        month: str = "", page: int = 1, page_size: int = 25,
+                        user=Depends(require_view)):
+    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search, month)
     total_amount = sum(ss.to_float(e.get("amount")) for e in rows)
     start = max(0, (page - 1) * page_size)
     return {
@@ -77,7 +77,7 @@ async def list_expenses(date_from: str = "", date_to: str = "", vehicle: str = "
 
 
 @router.post("/api/expenses")
-async def add_expense(request: Request, user=Depends(require_admin)):
+async def add_expense(request: Request, user=Depends(require_editor)):
     data = await request.json()
     if ss.to_float(data.get("amount")) <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
@@ -93,7 +93,7 @@ async def add_expense(request: Request, user=Depends(require_admin)):
 
 
 @router.put("/api/expenses/{expense_id}")
-async def update_expense(expense_id: str, request: Request, user=Depends(require_admin)):
+async def update_expense(expense_id: str, request: Request, user=Depends(require_editor)):
     data = await request.json()
     if not ss.find_record_by_id("expenses", expense_id):
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -107,7 +107,7 @@ async def update_expense(expense_id: str, request: Request, user=Depends(require
 
 
 @router.delete("/api/expenses/{expense_id}")
-async def delete_expense(expense_id: str, user=Depends(require_admin)):
+async def delete_expense(expense_id: str, user=Depends(require_editor)):
     if not ss.find_record_by_id("expenses", expense_id):
         raise HTTPException(status_code=404, detail="Expense not found")
     ss.delete_record("expenses", expense_id)
@@ -119,11 +119,11 @@ async def delete_expense(expense_id: str, user=Depends(require_admin)):
 @router.get("/api/expenses/export/excel")
 async def export_excel(date_from: str = "", date_to: str = "", vehicle: str = "",
                        category: str = "", sub_category: str = "", search: str = "",
-                       user=Depends(require_admin_or_viewer)):
+                       month: str = "", user=Depends(require_view)):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
 
-    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search)
+    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search, month)
     wb = Workbook()
     ws = wb.active
     ws.title = "Expenses"
@@ -152,14 +152,14 @@ async def export_excel(date_from: str = "", date_to: str = "", vehicle: str = ""
 @router.get("/api/expenses/export/pdf")
 async def export_pdf(date_from: str = "", date_to: str = "", vehicle: str = "",
                      category: str = "", sub_category: str = "", search: str = "",
-                     user=Depends(require_admin_or_viewer)):
+                     month: str = "", user=Depends(require_view)):
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet
 
-    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search)
+    rows = _filtered(date_from, date_to, vehicle, category, sub_category, search, month)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
                             leftMargin=10 * mm, rightMargin=10 * mm)
@@ -195,8 +195,12 @@ def _split(value):
     return [v.strip() for v in (value or "").split(",") if v.strip()]
 
 
-def _filtered(date_from, date_to, vehicle, category, sub_category, search):
+def _filtered(date_from, date_to, vehicle, category, sub_category, search, month=""):
     rows = ss.get_all_records("expenses")
+    months = _split(month)
+    if months:
+        rows = [e for e in rows
+                if any((e.get("expense_date") or "").startswith(m) for m in months)]
     if date_from:
         rows = [e for e in rows if (e.get("expense_date") or "") >= date_from]
     if date_to:

@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Income{% endblock %}
+{% block page_title %}Income{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Trip Income</h4>
+    <div class="sub">Trip-level revenue: material, quantity, rate and collection status</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost" onclick="exportExcel()"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Income</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Total (filtered)</div><div class="stat-value text-success" id="stTotal">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+    <div><div class="stat-label">Received</div><div class="stat-value" id="stReceived">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+    <div><div class="stat-label">Pending</div><div class="stat-value text-danger" id="stPending">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
+    <div><div class="stat-label">This Month</div><div class="stat-value" id="stMonth">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth"></div>
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+  <div><label class="form-label">Vehicle</label><div id="fVehicle"></div></div>
+  <div><label class="form-label">Customer</label><div id="fVendor"></div></div>
+  <div><label class="form-label">Status</label><div id="fStatus"></div></div>
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="From, to, material..." oninput="debouncedLoad()"></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>Vehicle</th><th>Customer</th><th>Trip</th><th>Material</th>
+        <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th>
+        <th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="incomeBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="incomeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="incomeModalTitle">Add Income</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="incomeForm" class="row g-3">
+        <div class="col-md-4"><label class="form-label">Date *</label>
+          <input type="date" class="form-control" name="income_date" required></div>
+        <div class="col-md-4"><label class="form-label">Vehicle</label>
+          <select class="form-select" name="vehicle_number"><option value="">— None —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Driver</label>
+          <select class="form-select" name="driver_name"><option value="">— None —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Customer</label>
+          <select class="form-select" name="vendor_name"><option value="">— None —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Trip From</label>
+          <input class="form-control" name="trip_from"></div>
+        <div class="col-md-4"><label class="form-label">Trip To</label>
+          <input class="form-control" name="trip_to"></div>
+        <div class="col-md-4"><label class="form-label">Material</label>
+          <input class="form-control" name="material" placeholder="RMC, sand, aggregate..."></div>
+        <div class="col-md-2"><label class="form-label">Quantity</label>
+          <input type="number" step="0.01" class="form-control calc" name="quantity" oninput="calcAmount()"></div>
+        <div class="col-md-2"><label class="form-label">Unit</label>
+          <select class="form-select" name="unit">
+            {% for u in units %}<option>{{ u }}</option>{% endfor %}</select></div>
+        <div class="col-md-2"><label class="form-label">Rate</label>
+          <input type="number" step="0.01" class="form-control calc" name="rate" oninput="calcAmount()"></div>
+        <div class="col-md-2"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount"></div>
+        <div class="col-md-4"><label class="form-label">Invoice Number</label>
+          <input class="form-control" name="invoice_number"></div>
+        <div class="col-md-4"><label class="form-label">Payment Status</label>
+          <select class="form-select" name="payment_status">
+            <option>Pending</option><option>Partial</option><option>Paid</option></select></div>
+        <div class="col-md-4"><label class="form-label">Payment Date</label>
+          <input type="date" class="form-control" name="payment_date"></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveIncome()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let rows = [], editingId = null;
+const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChange: () => loadIncome() });
+const msVendor = multiSelect("fVendor", { placeholder: "All Customers", onChange: () => loadIncome() });
+const msStatus = multiSelect("fStatus", { placeholder: "All Statuses",
+  options: ["Pending", "Partial", "Paid"], onChange: () => loadIncome() });
+
+function query() {
+  return new URLSearchParams({
+    month: document.getElementById("fMonth").value,
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    vehicle: msVehicle.values().join(","),
+    vendor: msVendor.values().join(","),
+    status: msStatus.values().join(","),
+    search: document.getElementById("fSearch").value,
+  }).toString();
+}
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo", onChange: () => loadIncome() });
+
+async function loadIncome() {
+  setLoading("incomeBody");
+  try {
+    const data = await api(`/api/income/list?${query()}`);
+    rows = data.rows;
+    setText("stTotal", fmtMoney(data.total_amount));
+    setText("stReceived", fmtMoney(data.received));
+    setText("stPending", fmtMoney(data.pending));
+    renderRows("incomeBody", data.rows, i => `<tr>
+      <td>${fmtDate(i.income_date)}</td>
+      <td class="fw-bold">${esc(i.vehicle_number || "-")}</td>
+      <td>${esc(i.vendor_name || "-")}</td>
+      <td>${esc(i.trip_from || "-")} → ${esc(i.trip_to || "-")}</td>
+      <td>${esc(i.material || "-")}</td>
+      <td class="text-end">${fmtNum(i.quantity)} ${esc(i.unit || "")}</td>
+      <td class="text-end">${fmtMoney(i.rate)}</td>
+      <td class="text-end fw-bold">${fmtMoney(i.amount)}</td>
+      <td>${statusBadge(i.payment_status || "Pending")}</td>
+      ${actionButtons(i.income_id)}
+    </tr>`, "No income entries match the filters");
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadIncome, 350);
+
+async function loadStats() {
+  try {
+    const s = await api("/api/income/stats");
+    setText("stMonth", fmtMoney(s.this_month));
+  } catch (e) { /* optional */ }
+}
+
+function calcAmount() {
+  const form = document.getElementById("incomeForm");
+  const amount = (Number(form.quantity.value) || 0) * (Number(form.rate.value) || 0);
+  if (amount > 0) form.amount.value = amount.toFixed(2);
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("incomeModalTitle").textContent = "Add Income";
+  const form = document.getElementById("incomeForm");
+  fillForm(form, null);
+  form.income_date.value = today();
+  openModal("incomeModal");
+}
+
+function editRecord(id) {
+  const i = rows.find(x => x.income_id === id);
+  if (!i) return;
+  editingId = id;
+  document.getElementById("incomeModalTitle").textContent = "Edit Income";
+  fillForm(document.getElementById("incomeForm"), i);
+  openModal("incomeModal");
+}
+
+async function saveIncome() {
+  const data = formData(document.getElementById("incomeForm"));
+  if (!Number(data.amount) && !(Number(data.quantity) * Number(data.rate)))
+    return toast("Enter an amount, or quantity and rate", "error");
+  try {
+    if (editingId) await api(`/api/income/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/income/add", { method: "POST", body: data });
+    closeModal("incomeModal");
+    toast(editingId ? "Income updated" : "Income added");
+    loadIncome(); loadStats();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this income entry?")) return;
+  try { await api(`/api/income/${id}`, { method: "DELETE" }); toast("Deleted"); loadIncome(); loadStats(); }
+  catch (e) { toastError(e); }
+}
+
+function exportExcel() { window.location.href = `/api/income/export/excel?${query()}`; }
+
+loadIncome();
+loadStats();
+loadVehicleOptions(document.querySelector('#incomeForm [name="vehicle_number"]'));
+loadDriverOptions(document.querySelector('#incomeForm [name="driver_name"]'));
+api("/api/vehicles").then(v => msVehicle.setOptions(v.map(x => x.vehicle_number))).catch(() => {});
+api("/api/vendors/list").then(d => {
+  const names = d.rows.map(v => v.vendor_name);
+  msVendor.setOptions(names);
+  fillSelect(document.querySelector('#incomeForm [name="vendor_name"]'), names);
+}).catch(() => {});
+</script>
+{% endblock %}

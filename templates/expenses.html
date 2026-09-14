@@ -24,8 +24,10 @@
 </div>
 
 <div class="glass-card filter-bar mb-3 animate-in">
-  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="reload()"></div>
-  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="reload()"></div>
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth"></div>
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
   <div><label class="form-label">Vehicle</label>
     <div id="fVehicle"></div></div>
   <div><label class="form-label">Category</label>
@@ -112,6 +114,7 @@ const msSub = multiSelect("fSub", { placeholder: "All Sub Categories",
 
 function query() {
   return new URLSearchParams({
+    month: document.getElementById("fMonth").value,
     date_from: document.getElementById("fFrom").value,
     date_to: document.getElementById("fTo").value,
     vehicle: msVehicle.values().join(","),
@@ -121,6 +124,8 @@ function query() {
     page, page_size: PAGE_SIZE,
   }).toString();
 }
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo", onChange: () => reload() });
 
 async function loadExpenses() {
   setLoading("expenseBody");

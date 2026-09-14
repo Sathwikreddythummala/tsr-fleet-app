@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Documents{% endblock %}
+{% block page_title %}Documents{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Document Library</h4>
+    <div class="sub">RC, insurance, permits, licences and proofs — stored securely in the database</div></div>
+  <button class="btn btn-gold admin-only" onclick="openUpload()">
+    <i class="bi bi-cloud-arrow-up me-1"></i> Upload Document</button>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Belongs To</label><div id="fType"></div></div>
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="File name or document type..." oninput="debouncedLoad()"></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Document</th><th>Type</th><th>Belongs To</th><th>Uploaded</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="docBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Upload Document</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-6"><label class="form-label">Belongs To *</label>
+          <select class="form-select" id="upType" onchange="loadEntities()">
+            {% for t in entity_types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
+          </select></div>
+        <div class="col-6"><label class="form-label">Record</label>
+          <select class="form-select" id="upEntity"><option value="">— None / general —</option></select></div>
+        <div class="col-12"><label class="form-label">Document Type *</label>
+          <input class="form-control" id="upDocType" list="docTypes" placeholder="RC, Insurance, Licence...">
+          <datalist id="docTypes">
+            <option>RC</option><option>Insurance</option><option>Permit</option>
+            <option>Fitness</option><option>PUC</option><option>Aadhaar</option>
+            <option>PAN Card</option><option>Driving Licence</option>
+            <option>Bank Passbook</option><option>Invoice</option><option>Other</option>
+          </datalist></div>
+        <div class="col-12"><label class="form-label">File * <span class="text-muted">(max 10 MB)</span></label>
+          <input type="file" class="form-control" id="upFile"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="uploadDoc()"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPES = {{ entity_types | tojson }};
+const msType = multiSelect("fType", { placeholder: "All Records",
+  options: TYPES.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+  onChange: () => loadDocs() });
+
+function iconFor(name) {
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "bi-file-earmark-image";
+  if (ext === "pdf") return "bi-file-earmark-pdf";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "bi-file-earmark-spreadsheet";
+  return "bi-file-earmark-text";
+}
+
+async function loadDocs() {
+  setLoading("docBody");
+  const params = new URLSearchParams({
+    entity_type: msType.values().map(v => v.toLowerCase()).join(","),
+    search: document.getElementById("fSearch").value,
+  });
+  try {
+    const data = await api(`/api/documents/list?${params}`);
+    renderRows("docBody", data.rows, d => `<tr>
+      <td><i class="bi ${iconFor(d.file_name)} me-2" style="color:var(--gold)"></i>
+        <span class="fw-bold">${esc(d.file_name)}</span></td>
+      <td><span class="badge-soft gold">${esc(d.document_type || "-")}</span></td>
+      <td>${esc(d.entity_name || "-")}
+        <small class="text-muted d-block">${esc(d.entity_type || "")}</small></td>
+      <td>${esc((d.uploaded_date || "").slice(0, 16))}</td>
+      <td class="text-nowrap">
+        <a class="btn-icon-sm" href="/documents/file/${d.document_id}" target="_blank" title="View">
+          <i class="bi bi-eye"></i></a>
+        <a class="btn-icon-sm" href="/documents/file/${d.document_id}?download=1" title="Download">
+          <i class="bi bi-download"></i></a>
+        <button class="btn-icon-sm danger admin-only" onclick="deleteDoc('${d.document_id}')" title="Delete">
+          <i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`, "No documents uploaded yet");
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadDocs, 300);
+
+async function loadEntities() {
+  const type = document.getElementById("upType").value;
+  const select = document.getElementById("upEntity");
+  select.innerHTML = '<option value="">— None / general —</option>';
+  const sources = {
+    vehicle: ["/api/vehicles", v => v.vehicle_id, v => v.vehicle_number],
+    driver: ["/api/drivers", d => d.driver_id, d => d.driver_name],
+    mithi: ["/api/mithi/persons", p => p.mithi_person_id, p => p.person_name],
+    vendor: ["/api/vendors/list", v => v.vendor_id, v => v.vendor_name],
+  };
+  const source = sources[type];
+  if (!source) return;
+  try {
+    const data = await api(source[0]);
+    const rows = Array.isArray(data) ? data : data.rows || [];
+    fillSelect(select, rows, { value: source[1], label: source[2] });
+  } catch (e) { /* leave empty */ }
+}
+
+function openUpload() {
+  document.getElementById("upDocType").value = "";
+  document.getElementById("upFile").value = "";
+  loadEntities();
+  openModal("uploadModal");
+}
+
+async function uploadDoc() {
+  const file = document.getElementById("upFile").files[0];
+  const docType = document.getElementById("upDocType").value.trim();
+  if (!file) return toast("Choose a file", "error");
+  if (!docType) return toast("Enter the document type", "error");
+  const fd = new FormData();
+  fd.append("entity_type", document.getElementById("upType").value);
+  fd.append("entity_id", document.getElementById("upEntity").value);
+  fd.append("document_type", docType);
+  fd.append("file", file);
+  try {
+    await api("/api/documents/upload", { method: "POST", body: fd });
+    closeModal("uploadModal");
+    toast("Document uploaded");
+    loadDocs();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteDoc(id) {
+  if (!confirm("Delete this document permanently?")) return;
+  try { await api(`/api/documents/${id}`, { method: "DELETE" }); toast("Deleted"); loadDocs(); }
+  catch (e) { toastError(e); }
+}
+
+loadDocs();
+</script>
+{% endblock %}

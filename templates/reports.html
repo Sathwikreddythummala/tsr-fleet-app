@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Reports</h4>
+    <div class="sub">Per-vehicle profit &amp; loss and fuel mileage</div></div>
+</div>
+
+<ul class="nav nav-pills mb-3 animate-in">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabPL">Vehicle P&amp;L</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabMileage">Fuel Mileage</button></li>
+</ul>
+
+<div class="tab-content">
+  <!-- ---------------------------------------------------------- P&L -->
+  <div class="tab-pane fade show active" id="tabPL">
+    <div class="glass-card filter-bar mb-3 animate-in">
+      <div><label class="form-label">Expense Month</label>
+        <input type="month" class="form-control" id="plExpenseMonth" value="{{ default_expense_month }}" onchange="syncBilling()"></div>
+      <div><label class="form-label">Billing Month</label>
+        <input type="month" class="form-control" id="plBillingMonth" value="{{ default_billing_month }}" onchange="loadPL()"></div>
+      <div class="d-flex gap-2 align-items-end">
+        <button class="btn btn-ghost" onclick="exportPL('excel')"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+        <button class="btn btn-ghost" onclick="exportPL('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+      </div>
+      <div class="ms-auto align-self-end">
+        <span class="month-pill"><i class="bi bi-info-circle"></i>
+          Work in one month, bill the next</span>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+        <div><div class="stat-label">Revenue</div><div class="stat-value text-success" id="plRevenue">—</div></div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+        <div><div class="stat-label">Expenses</div><div class="stat-value text-danger" id="plExpense">—</div></div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-safe2"></i></div>
+        <div><div class="stat-label">Profit / Loss</div><div class="stat-value" id="plProfit">—</div></div>
+      </div></div>
+      <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-percent"></i></div>
+        <div><div class="stat-label">Margin</div><div class="stat-value" id="plMargin">—</div></div>
+      </div></div>
+    </div>
+
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Vehicle</th><th>Type</th><th class="text-end">Revenue</th>
+            <th class="text-end">Fuel</th><th class="text-end">Driver</th>
+            <th class="text-end">EMI</th><th class="text-end">Other</th>
+            <th class="text-end">Total Expense</th><th class="text-end">P&amp;L</th>
+            <th class="text-end">Margin</th>
+          </tr></thead>
+          <tbody id="plBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------------------------------------------------------- mileage -->
+  <div class="tab-pane fade" id="tabMileage">
+    <div class="glass-card filter-bar mb-3 animate-in">
+      <div><label class="form-label">Month</label>
+        <input type="month" class="form-control" id="milMonth" value="{{ default_expense_month }}" onchange="loadMileage()"></div>
+      <div class="d-flex gap-2 align-items-end">
+        <button class="btn btn-ghost" onclick="exportMileage('excel')"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+        <button class="btn btn-ghost" onclick="exportMileage('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+      </div>
+      <div class="ms-auto align-self-end">
+        <span class="month-pill"><i class="bi bi-pencil"></i> Enter approved KM to get mileage</span>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-4"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-droplet-half"></i></div>
+        <div><div class="stat-label">Total Diesel</div><div class="stat-value" id="milLitres">—</div></div>
+      </div></div>
+      <div class="col-md-4"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-signpost-split"></i></div>
+        <div><div class="stat-label">Total KM</div><div class="stat-value" id="milKm">—</div></div>
+      </div></div>
+      <div class="col-md-4"><div class="glass-card stat-card animate-in">
+        <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
+        <div><div class="stat-label">Fleet Average</div><div class="stat-value text-success" id="milAvg">—</div></div>
+      </div></div>
+    </div>
+
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Vehicle</th><th>Type</th><th class="text-end">Diesel Litres</th>
+            <th class="text-end" style="width:150px">Approved KM</th>
+            <th class="text-end">Mileage (km/l)</th><th></th>
+          </tr></thead>
+          <tbody id="milBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function shiftMonth(month, delta) {
+  const [y, m] = month.split("-").map(Number);
+  const idx = y * 12 + (m - 1) + delta;
+  return `${String(Math.floor(idx / 12)).padStart(4, "0")}-${String(idx % 12 + 1).padStart(2, "0")}`;
+}
+
+function syncBilling() {
+  const expense = document.getElementById("plExpenseMonth").value;
+  if (expense) document.getElementById("plBillingMonth").value = shiftMonth(expense, 1);
+  loadPL();
+}
+
+function plQuery() {
+  return new URLSearchParams({
+    expense_month: document.getElementById("plExpenseMonth").value,
+    billing_month: document.getElementById("plBillingMonth").value,
+  }).toString();
+}
+
+async function loadPL() {
+  setLoading("plBody");
+  try {
+    const data = await api(`/api/reports/vehicle-pl?${plQuery()}`);
+    const t = data.totals;
+    setText("plRevenue", fmtMoney(t.revenue));
+    setText("plExpense", fmtMoney(t.total_expense));
+    const profit = document.getElementById("plProfit");
+    profit.textContent = fmtMoney(t.profit);
+    profit.className = "stat-value " + (t.profit >= 0 ? "text-success" : "text-danger");
+    setText("plMargin", `${t.margin}%`);
+    renderRows("plBody", data.rows, r => `<tr>
+      <td class="fw-bold">${esc(r.vehicle_number)}</td>
+      <td>${esc(r.vehicle_type || "-")}</td>
+      <td class="text-end text-success">${fmtMoney(r.revenue)}</td>
+      <td class="text-end">${fmtMoney(r.fuel)}</td>
+      <td class="text-end">${fmtMoney(r.driver)}</td>
+      <td class="text-end">${fmtMoney(r.emi)}</td>
+      <td class="text-end">${fmtMoney(r.other)}</td>
+      <td class="text-end">${fmtMoney(r.total_expense)}</td>
+      <td class="text-end ${r.profit >= 0 ? "pl-positive" : "pl-negative"}">${fmtMoney(r.profit)}</td>
+      <td class="text-end">${r.margin}%</td>
+    </tr>`, "No vehicles to report on");
+  } catch (e) { toastError(e); }
+}
+
+function exportPL(kind) {
+  window.location.href = `/api/reports/vehicle-pl/${kind}?${plQuery()}`;
+}
+
+async function loadMileage() {
+  setLoading("milBody");
+  const month = document.getElementById("milMonth").value;
+  try {
+    const data = await api(`/api/reports/mileage?month=${month}`);
+    setText("milLitres", fmtNum(data.total_litres) + " L");
+    setText("milKm", fmtNum(data.total_km) + " km");
+    setText("milAvg", data.avg_mileage + " km/l");
+    renderRows("milBody", data.rows, r => `<tr>
+      <td class="fw-bold">${esc(r.vehicle_number)}</td>
+      <td>${esc(r.vehicle_type || "-")}</td>
+      <td class="text-end">
+        <input type="number" step="0.01" class="form-control form-control-sm text-end ms-auto"
+               style="width:110px" value="${r.litres}" id="lit-${esc(r.vehicle_number)}"
+               oninput="recalc('${esc(r.vehicle_number)}')"></td>
+      <td class="text-end">
+        <input type="number" class="form-control form-control-sm text-end ms-auto"
+               style="width:120px" value="${r.approved_km || ""}" id="km-${esc(r.vehicle_number)}"
+               oninput="recalc('${esc(r.vehicle_number)}')"></td>
+      <td class="text-end fw-bold" id="mil-${esc(r.vehicle_number)}">${r.mileage || "—"}</td>
+      <td><button class="btn btn-gold btn-sm admin-only"
+            onclick="saveMileage('${esc(r.vehicle_number)}')">Save</button></td>
+    </tr>`, "No active vehicles");
+  } catch (e) { toastError(e); }
+}
+
+function recalc(vehicle) {
+  const litres = Number(document.getElementById(`lit-${vehicle}`).value) || 0;
+  const km = Number(document.getElementById(`km-${vehicle}`).value) || 0;
+  document.getElementById(`mil-${vehicle}`).textContent =
+    litres > 0 ? (km / litres).toFixed(2) : "—";
+}
+
+async function saveMileage(vehicle) {
+  const body = {
+    month: document.getElementById("milMonth").value,
+    vehicle_number: vehicle,
+    litres: document.getElementById(`lit-${vehicle}`).value,
+    approved_km: document.getElementById(`km-${vehicle}`).value,
+  };
+  try {
+    await api("/api/reports/mileage/save", { method: "POST", body });
+    toast(`${vehicle} mileage saved`);
+  } catch (e) { toastError(e); }
+}
+
+function exportMileage(kind) {
+  window.location.href =
+    `/api/reports/mileage/${kind}?month=${document.getElementById("milMonth").value}`;
+}
+
+loadPL();
+loadMileage();
+</script>
+{% endblock %}

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from services import sheets_service as ss
-from utils.permissions import require_admin, require_admin_or_viewer
+from utils.permissions import require_editor, require_view
 from utils.templates import render
 
 router = APIRouter(tags=["gst"])
@@ -11,12 +11,12 @@ GST_RATE = 0.09  # SGST and CGST each, when not provided explicitly
 
 
 @router.get("/gst")
-async def gst_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def gst_page(request: Request, user=Depends(require_view)):
     return render(request, "gst.html")
 
 
 @router.get("/api/gst/purchases")
-async def list_purchases(month: str = "", user=Depends(require_admin_or_viewer)):
+async def list_purchases(month: str = "", user=Depends(require_view)):
     rows = ss.get_all_records("gstpurchases")
     if month:
         rows = [p for p in rows if (p.get("invoice_date") or "").startswith(month)]
@@ -24,7 +24,7 @@ async def list_purchases(month: str = "", user=Depends(require_admin_or_viewer))
 
 
 @router.post("/api/gst/purchases")
-async def add_purchase(request: Request, user=Depends(require_admin)):
+async def add_purchase(request: Request, user=Depends(require_editor)):
     data = _calculate(await request.json())
     if ss.to_float(data.get("amount")) <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
@@ -36,7 +36,7 @@ async def add_purchase(request: Request, user=Depends(require_admin)):
 
 
 @router.put("/api/gst/purchases/{purchase_id}")
-async def update_purchase(purchase_id: str, request: Request, user=Depends(require_admin)):
+async def update_purchase(purchase_id: str, request: Request, user=Depends(require_editor)):
     if not ss.find_record_by_id("gstpurchases", purchase_id):
         raise HTTPException(status_code=404, detail="Purchase not found")
     ss.update_record("gstpurchases", purchase_id, _calculate(await request.json()))
@@ -45,7 +45,7 @@ async def update_purchase(purchase_id: str, request: Request, user=Depends(requi
 
 
 @router.delete("/api/gst/purchases/{purchase_id}")
-async def delete_purchase(purchase_id: str, user=Depends(require_admin)):
+async def delete_purchase(purchase_id: str, user=Depends(require_editor)):
     if not ss.find_record_by_id("gstpurchases", purchase_id):
         raise HTTPException(status_code=404, detail="Purchase not found")
     ss.delete_record("gstpurchases", purchase_id)
@@ -54,7 +54,7 @@ async def delete_purchase(purchase_id: str, user=Depends(require_admin)):
 
 
 @router.get("/api/gst/sales")
-async def list_sales(month: str = "", user=Depends(require_admin_or_viewer)):
+async def list_sales(month: str = "", user=Depends(require_view)):
     """Sales GST comes from Billing, grouped by invoice number."""
     groups = {}
     for b in ss.get_all_records("billing"):
@@ -79,7 +79,7 @@ async def list_sales(month: str = "", user=Depends(require_admin_or_viewer)):
 
 
 @router.get("/api/gst/summary")
-async def gst_summary(month: str = "", user=Depends(require_admin_or_viewer)):
+async def gst_summary(month: str = "", user=Depends(require_view)):
     month = month or ss.this_month()
     purchases = [p for p in ss.get_all_records("gstpurchases")
                  if (p.get("invoice_date") or "").startswith(month)]

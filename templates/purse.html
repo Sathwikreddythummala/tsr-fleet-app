@@ -38,6 +38,12 @@
 <div class="glass-card filter-bar mb-3 animate-in">
   <div><label class="form-label">Holder</label>
     <div id="fHolder"></div></div>
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth"></div>
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+  <div class="align-self-end"><button class="btn btn-ghost" onclick="clearFilters()">
+    <i class="bi bi-x-circle me-1"></i> Clear</button></div>
 </div>
 
 <div class="glass-card table-card animate-in">
@@ -90,11 +96,22 @@
 const msHolder = multiSelect("fHolder", { placeholder: "All Holders",
   options: ["TSR", "TRR"], onChange: () => loadPurse() });
 
+function clearFilters() {
+  msHolder.clear();
+  ["fMonth", "fFrom", "fTo"].forEach(id => { document.getElementById(id).value = ""; });
+  loadPurse();
+}
+
 async function loadPurse() {
   setLoading("purseBody");
-  const holder = msHolder.values().join(",");
+  const params = new URLSearchParams({
+    holder: msHolder.values().join(","),
+    month: document.getElementById("fMonth").value,
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+  });
   try {
-    const data = await api(`/api/purse?holder=${holder}`);
+    const data = await api(`/api/purse?${params}`);
     const s = data.summary;
     setText("tsrBalance", fmtMoney(s.TSR.balance));
     setText("tsrGiven", fmtMoney(s.TSR.given));
@@ -144,6 +161,9 @@ async function deletePurse(id) {
   try { await api(`/api/purse/${id}`, { method: "DELETE" }); toast("Deleted"); loadPurse(); }
   catch (e) { toastError(e); }
 }
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo",
+                    onChange: () => loadPurse() });
 
 loadPurse();
 loadVehicleOptions(document.querySelector('#purseForm [name="vehicle_number"]'));

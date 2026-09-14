@@ -7,7 +7,7 @@ from utils.templates import render
 
 router = APIRouter(tags=["access"])
 
-ROLES = ("admin", "viewer", "driver")
+ROLES = ("admin", "editor", "viewer", "driver")
 
 
 @router.get("/access")

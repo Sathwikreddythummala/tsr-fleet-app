@@ -1,41 +1,47 @@
-"""Authentication helpers: allowed emails, roles, driver lookup, OTP login."""
-import random
-import time
-
-import httpx
-
+"""Authentication helpers: allowed emails, roles, employee lookup."""
 from config import settings
-from services import sheets_service
+from services import sheets_service as ss
 
-# in-memory OTP store: mobile -> (otp, expiry_epoch)
-_otp_store = {}
-OTP_TTL_SECONDS = 300
+ROLES = ("admin", "editor", "viewer", "driver")
 
-
-# ------------------------------------------------------------------ app users
 
 def get_user_by_email(email):
     email = (email or "").strip().lower()
-    for user in sheets_service.get_all_records("users"):
+    if not email:
+        return None
+    for user in ss.get_all_records("users"):
         if (user.get("email") or "").strip().lower() == email:
             return user
     return None
 
 
 def resolve_role(email):
-    """Return role for a Google login email, bootstrapping allowed emails as admin."""
+    """Role for a Google login, bootstrapping ALLOWED_EMAILS as admin."""
     email = (email or "").strip().lower()
+    if not email:
+        return None
+    if email in settings.ALLOWED_EMAILS:
+        user = get_user_by_email(email)
+        if not user:
+            ss.add_record("users", {
+                "email": email, "name": email.split("@")[0].title(),
+                "role": "admin", "status": "Active",
+            })
+        elif (user.get("role") or "") != "admin":
+            ss.update_record("users", user["user_id"], {"role": "admin",
+                                                        "status": "Active"})
+        return "admin"
+
     user = get_user_by_email(email)
     if user:
-        if (user.get("status") or "").lower() != "active":
+        if (user.get("status") or "Active").lower() != "active":
             return None
-        return (user.get("role") or "viewer").lower()
-    if email in settings.ALLOWED_EMAILS:
-        sheets_service.add_record("users", {
-            "email": email, "name": email.split("@")[0].title(),
-            "role": "admin", "status": "Active",
-        })
-        return "admin"
+        role = (user.get("role") or "viewer").lower()
+        return role if role in ROLES else "viewer"
+
+    driver = find_driver_by_email(email)
+    if driver and (driver.get("status") or "Active") == "Active":
+        return "driver"
     return None
 
 
@@ -43,70 +49,35 @@ def is_admin(user):
     return bool(user) and user.get("role") == "admin"
 
 
+def can_edit(user):
+    return bool(user) and user.get("role") in ("admin", "editor")
+
+
 def is_viewer(user):
     return bool(user) and user.get("role") == "viewer"
 
 
-def is_driver(user):
-    return bool(user) and user.get("role") == "driver"
+def clean_mobile(mobile):
+    digits = "".join(ch for ch in str(mobile or "") if ch.isdigit())
+    return digits[-10:] if len(digits) >= 10 else ""
 
-
-# ------------------------------------------------------------------- drivers
 
 def find_driver_by_mobile(mobile):
-    mobile = "".join(ch for ch in str(mobile or "") if ch.isdigit())[-10:]
-    if len(mobile) != 10:
+    target = clean_mobile(mobile)
+    if not target:
         return None
-    for driver in sheets_service.get_all_records("drivers"):
-        stored = "".join(ch for ch in str(driver.get("mobile_number") or "") if ch.isdigit())[-10:]
-        if stored == mobile and (driver.get("status") or "").lower() == "active":
+    for driver in ss.get_all_records("drivers"):
+        if (clean_mobile(driver.get("mobile_number")) == target
+                and (driver.get("status") or "Active") == "Active"):
             return driver
     return None
 
 
 def find_driver_by_email(email):
     email = (email or "").strip().lower()
-    for driver in sheets_service.get_all_records("drivers"):
+    if not email:
+        return None
+    for driver in ss.get_all_records("drivers"):
         if (driver.get("email") or "").strip().lower() == email:
             return driver
     return None
-
-
-# ---------------------------------------------------------------------- OTP
-
-def send_otp(mobile):
-    """Generate an OTP for a registered driver. Returns (ok, message, dev_otp)."""
-    driver = find_driver_by_mobile(mobile)
-    if not driver:
-        return False, "Mobile number is not registered as an active driver", None
-    otp = f"{random.randint(100000, 999999)}"
-    _otp_store[_clean(mobile)] = (otp, time.time() + OTP_TTL_SECONDS)
-    if settings.FAST2SMS_API_KEY:
-        try:
-            httpx.get(
-                "https://www.fast2sms.com/dev/bulkV2",
-                params={"variables_values": otp, "route": "otp", "numbers": _clean(mobile)},
-                headers={"authorization": settings.FAST2SMS_API_KEY},
-                timeout=15,
-            )
-            return True, "OTP sent to your mobile number", None
-        except Exception:
-            return False, "Could not send OTP SMS, try again", None
-    # development mode: no SMS gateway configured, surface the OTP
-    return True, "OTP generated (dev mode - no SMS key configured)", otp
-
-
-def verify_otp(mobile, otp):
-    """Verify OTP and return the driver record on success."""
-    entry = _otp_store.get(_clean(mobile))
-    if not entry:
-        return None
-    stored_otp, expiry = entry
-    if time.time() > expiry or str(otp).strip() != stored_otp:
-        return None
-    _otp_store.pop(_clean(mobile), None)
-    return find_driver_by_mobile(mobile)
-
-
-def _clean(mobile):
-    return "".join(ch for ch in str(mobile or "") if ch.isdigit())[-10:]

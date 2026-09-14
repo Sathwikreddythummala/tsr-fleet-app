@@ -8,26 +8,30 @@
     <h4>{{ driver.driver_name }}
       <span class="badge-soft {{ 'success' if (driver.status or 'Active') == 'Active' else 'muted' }}">{{ driver.status or 'Active' }}</span>
     </h4>
-    <div class="sub">{{ driver.employee_type or 'Driver' }} · {{ driver.mobile_number or '' }} · Vehicle: {{ driver.assigned_vehicle or 'Unassigned' }}</div>
+    <div class="sub">{{ driver.employee_type or 'Driver' }} · {{ driver.mobile_number or 'no mobile' }}
+      · Vehicle: {{ driver.assigned_vehicle or 'Unassigned' }}</div>
   </div>
-  <a href="/drivers" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> All Employees</a>
+  <div class="d-flex gap-2 align-items-center">
+    <input type="month" class="form-control" id="fMonth" style="width:auto" onchange="loadSalary()">
+    <a href="/drivers" class="btn btn-ghost"><i class="bi bi-arrow-left me-1"></i> All Employees</a>
+  </div>
 </div>
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
-    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
-    <div><div class="stat-label">Monthly Salary</div><div class="stat-value">₹{{ driver.salary or '0' }}</div></div>
+    <div class="stat-icon"><i class="bi bi-cash"></i></div>
+    <div><div class="stat-label">Gross (earned)</div><div class="stat-value" id="stGross">—</div></div>
+  </div></div>
+  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calendar2-check"></i></div>
+    <div><div class="stat-label">Days Worked</div><div class="stat-value" id="stDays">—</div></div>
   </div></div>
   <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-arrow-up-right-circle"></i></div>
-    <div><div class="stat-label">Advance ({{ '' }}this month)</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+    <div><div class="stat-label">Advance</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
   </div></div>
   <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
-    <div class="stat-icon"><i class="bi bi-cup-hot"></i></div>
-    <div><div class="stat-label">Meals (this month)</div><div class="stat-value" id="stMeals">—</div></div>
-  </div></div>
-  <div class="col-6 col-xl-3"><div class="glass-card stat-card animate-in">
-    <div class="stat-icon"><i class="bi bi-cash"></i></div>
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
     <div><div class="stat-label">Net Payable</div><div class="stat-value text-success" id="stNet">—</div></div>
   </div></div>
 </div>
@@ -35,24 +39,29 @@
 <div class="row g-3 mb-4">
   <div class="col-lg-6"><div class="glass-card animate-in h-100">
     <div class="section-title"><i class="bi bi-person-vcard"></i> Profile</div>
-    <table class="table table-sm mb-0" style="font-size:13.4px">
+    <table class="table table-sm mb-0" style="font-size:13.2px">
       <tr><td class="text-muted">Email</td><td>{{ driver.email or '—' }}</td>
           <td class="text-muted">Emergency</td><td>{{ driver.emergency_contact or '—' }}</td></tr>
       <tr><td class="text-muted">Aadhaar</td><td>{{ driver.aadhaar_number or '—' }}</td>
-          <td class="text-muted">License</td><td>{{ driver.driving_license_number or '—' }}</td></tr>
-      <tr><td class="text-muted">License Expiry</td><td>{{ driver.license_expiry_date or '—' }}</td>
-          <td class="text-muted">Joining</td><td>{{ driver.joining_date or '—' }}</td></tr>
+          <td class="text-muted">Licence</td><td>{{ driver.driving_license_number or '—' }}</td></tr>
+      <tr><td class="text-muted">Licence Expiry</td><td>{{ driver.license_expiry_date or '—' }}</td>
+          <td class="text-muted">Joined</td><td>{{ driver.joining_date or '—' }}</td></tr>
       <tr><td class="text-muted">Bank</td><td>{{ driver.bank_name or '—' }}</td>
           <td class="text-muted">Account</td><td>{{ driver.account_number or '—' }} {{ driver.ifsc_code or '' }}</td></tr>
+      <tr><td class="text-muted">Profile Salary</td><td>₹{{ driver.salary or '0' }}</td>
+          <td class="text-muted">Driver App</td>
+          <td>{% if driver.portal_pin %}<span class="badge-soft success">PIN set</span>
+              {% else %}<span class="badge-soft warning">No PIN</span>{% endif %}</td></tr>
       <tr><td class="text-muted">Address</td><td colspan="3">{{ driver.address or '—' }}</td></tr>
     </table>
   </div></div>
+
   <div class="col-lg-6"><div class="glass-card animate-in h-100">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div class="section-title mb-0"><i class="bi bi-folder2-open"></i> Documents</div>
       <div class="admin-only d-flex gap-2 flex-wrap">
         <select class="form-select form-select-sm" id="docType" style="width:auto">
-          <option>Aadhaar</option><option>License</option><option>Photo</option>
+          <option>Aadhaar</option><option>Driving Licence</option><option>Photo</option>
           <option>Bank Passbook</option><option>Other</option></select>
         <input type="file" class="form-control form-control-sm" id="docFile" style="width:auto">
         <button class="btn btn-gold btn-sm" onclick="uploadDoc()"><i class="bi bi-cloud-arrow-up"></i></button>
@@ -62,42 +71,55 @@
   </div></div>
 </div>
 
+<div class="glass-card animate-in mb-4">
+  <div class="section-title"><i class="bi bi-calculator"></i> Salary Breakdown <span id="monthLabel" class="month-pill ms-2"></span></div>
+  <div class="row g-2" id="breakdown"></div>
+</div>
+
 <div class="glass-card table-card animate-in">
   <div class="d-flex justify-content-between align-items-center p-3 pb-0">
-    <div class="section-title mb-0"><i class="bi bi-journal-text"></i> Salary Adjustments</div>
-    <div class="d-flex gap-2 align-items-center">
-      <input type="month" class="form-control form-control-sm" id="fMonth" style="width:auto" onchange="loadAdjustments()">
-      <button class="btn btn-gold btn-sm admin-only" onclick="openModal('adjModal')"><i class="bi bi-plus-lg"></i> Add</button>
-    </div>
+    <div class="section-title mb-0"><i class="bi bi-journal-text"></i> Salary Entries</div>
+    <button class="btn btn-gold btn-sm admin-only" onclick="openEntry()">
+      <i class="bi bi-plus-lg"></i> Add Entry</button>
   </div>
   <div class="table-responsive">
     <table class="table table-premium">
-      <thead><tr><th>Month</th><th>Type</th><th>Description</th><th class="text-end">Amount</th><th>Actions</th></tr></thead>
-      <tbody id="adjBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
+      <thead><tr><th>Date</th><th>Type</th><th>Description</th>
+        <th class="text-end">Amount</th><th>Paid By</th></tr></thead>
+      <tbody id="entryBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
     </table>
   </div>
 </div>
 
-<div class="modal fade" id="adjModal" tabindex="-1">
+<div class="modal fade" id="entryModal" tabindex="-1">
   <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Add Adjustment</h5>
+    <div class="modal-header"><h5 class="modal-title">Add Salary Entry</h5>
       <button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <form id="adjForm" class="row g-3">
+      <form id="entryForm" class="row g-3">
         <div class="col-6"><label class="form-label">Type</label>
-          <select class="form-select" name="entry_type">
-            <option>Advance</option><option>Meals</option><option>Incentive</option><option>Deduction</option></select></div>
-        <div class="col-6"><label class="form-label">Month</label>
+          <select class="form-select" name="sub_category">
+            <option>Advance</option><option>Meals</option><option>Salary</option>
+            <option>Deductions</option><option value="Incentive">Incentive</option></select></div>
+        <div class="col-6"><label class="form-label">For Month</label>
           <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-6"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="expense_date"></div>
         <div class="col-6"><label class="form-label">Amount *</label>
           <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option></select></div>
+        <div class="col-6"><label class="form-label">Paid By</label>
+          <select class="form-select" name="paid_by">
+            <option value="">Company</option><option>TSR</option><option>TRR</option></select></div>
         <div class="col-12"><label class="form-label">Description</label>
           <input class="form-control" name="description"></div>
       </form>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
-      <button class="btn btn-gold" onclick="saveAdjustment()"><i class="bi bi-check-lg me-1"></i> Save</button>
+      <button class="btn btn-gold" onclick="saveEntry()"><i class="bi bi-check-lg me-1"></i> Save</button>
     </div>
   </div></div>
 </div>
@@ -106,47 +128,86 @@
 {% block scripts %}
 <script>
 const DRIVER_ID = "{{ driver.driver_id }}";
-const SALARY = Number("{{ driver.salary or 0 }}") || 0;
-
 document.getElementById("fMonth").value = thisMonth();
-document.querySelector('#adjForm [name="for_month"]').value = thisMonth();
 
-async function loadAdjustments() {
+async function loadSalary() {
   const month = document.getElementById("fMonth").value;
-  setLoading("adjBody");
+  setLoading("entryBody");
   try {
-    const rows = await api(`/api/salaries/adjustments?driver_id=${DRIVER_ID}&month=${month}`);
-    const sum = t => rows.filter(r => r.entry_type === t)
-      .reduce((a, r) => a + (Number(r.amount) || 0), 0);
-    setText("stAdvance", fmtMoney(sum("Advance")));
-    setText("stMeals", fmtMoney(sum("Meals")));
-    setText("stNet", fmtMoney(SALARY + sum("Incentive") - sum("Advance") - sum("Meals") - sum("Deduction")));
-    renderRows("adjBody", rows, r => `<tr>
-      <td>${esc(r.for_month)}</td>
-      <td>${statusBadge(r.entry_type)}</td>
+    const data = await api(`/api/drivers/${DRIVER_ID}/salary?month=${month}`);
+    const s = data.summary;
+    setText("stGross", fmtMoney(s.gross));
+    setText("stDays", s.effective_days || "—");
+    setText("stAdvance", fmtMoney(s.advance));
+    setText("stNet", fmtMoney(s.net_payable));
+    setText("monthLabel", data.month_name);
+
+    const parts = [
+      ["Gross earned", s.gross, "text-success"],
+      ["Incentive", s.incentive, "text-success"],
+      ["Salary paid", -s.salary_paid, "text-danger"],
+      ["Advance", -s.advance, "text-danger"],
+      ["Meals", -s.meals, "text-danger"],
+      ["Deductions", -s.deduction, "text-danger"],
+      ["Net payable", s.net_payable, "fw-bold"],
+    ];
+    document.getElementById("breakdown").innerHTML = parts.map(([label, value, cls]) => `
+      <div class="col-6 col-md-3">
+        <div class="p-2" style="border-bottom:1px solid var(--glass-border)">
+          <div class="stat-label">${label}</div>
+          <div class="${cls}" style="font-weight:800">${fmtMoney(Math.abs(value))}</div>
+        </div></div>`).join("");
+
+    const vehicles = Object.entries(s.vehicles || {});
+    if (vehicles.length) {
+      document.getElementById("breakdown").innerHTML += `
+        <div class="col-12 mt-2"><small class="text-muted">Earned on:
+          ${vehicles.map(([v, d]) => `<b>${esc(v)}</b> ${d.days}d = ${fmtMoney(d.amount)}`).join(" · ")}
+        </small></div>`;
+    }
+
+    const rows = [...data.entries.map(e => ({
+      date: e.expense_date, type: e.sub_category || "Other",
+      description: e.description, amount: e.amount, paid_by: e.paid_by,
+    })), ...data.incentives.map(i => ({
+      date: i.created_date ? i.created_date.slice(0, 10) : "", type: "Incentive",
+      description: i.description, amount: i.amount, paid_by: "",
+    }))].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+    renderRows("entryBody", rows, r => `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${statusBadge(r.type)}</td>
       <td>${esc(r.description || "-")}</td>
       <td class="text-end fw-bold">${fmtMoney(r.amount)}</td>
-      <td><button class="btn-icon-sm danger admin-only" onclick="deleteAdjustment('${r.incentive_id}')"><i class="bi bi-trash"></i></button></td>
-    </tr>`, "No adjustments for this month");
+      <td>${esc(r.paid_by || "Company")}</td>
+    </tr>`, "No salary entries this month");
   } catch (e) { toastError(e); }
 }
 
-async function saveAdjustment() {
-  const data = formData(document.getElementById("adjForm"));
+function openEntry() {
+  const form = document.getElementById("entryForm");
+  fillForm(form, null);
+  form.for_month.value = document.getElementById("fMonth").value;
+  form.expense_date.value = today();
+  openModal("entryModal");
+}
+
+async function saveEntry() {
+  const data = formData(document.getElementById("entryForm"));
   data.driver_id = DRIVER_ID;
   if (!Number(data.amount)) return toast("Amount is required", "error");
   try {
-    await api("/api/salaries/adjustments", { method: "POST", body: data });
-    closeModal("adjModal");
-    toast("Adjustment added");
-    loadAdjustments();
+    if (data.sub_category === "Incentive") {
+      await api("/api/incentive", { method: "POST", body: {
+        driver_id: DRIVER_ID, for_month: data.for_month,
+        amount: data.amount, description: data.description } });
+    } else {
+      await api("/api/salaries/component", { method: "POST", body: data });
+    }
+    closeModal("entryModal");
+    toast("Entry saved");
+    loadSalary();
   } catch (e) { toastError(e); }
-}
-
-async function deleteAdjustment(id) {
-  if (!confirm("Delete this adjustment?")) return;
-  try { await api(`/api/salaries/adjustments/${id}`, { method: "DELETE" }); toast("Deleted"); loadAdjustments(); }
-  catch (e) { toastError(e); }
 }
 
 async function loadDocs() {
@@ -172,14 +233,14 @@ async function uploadDoc() {
   fd.append("document_type", document.getElementById("docType").value);
   fd.append("file", file);
   try {
-    await api(`/api/drivers/${DRIVER_ID}/documents`, { method: "POST", body: fd });
+    await api(`/api/drivers/${DRIVER_ID}/upload`, { method: "POST", body: fd });
     toast("Document uploaded");
     document.getElementById("docFile").value = "";
     loadDocs();
   } catch (e) { toastError(e); }
 }
 
-loadAdjustments();
+loadSalary();
 loadDocs();
 </script>
 {% endblock %}

@@ -43,11 +43,16 @@
         <div class="col-md-4"><label class="form-label">Status</label>
           <select class="form-select" name="vehicle_status">
             <option>Active</option><option>Inactive</option><option>Sold</option></select></div>
-        <div class="col-md-6"><label class="form-label">Default Driver</label>
+        <div class="col-md-4"><label class="form-label">Default Driver</label>
           <select class="form-select" name="default_driver"><option value="">— None —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Default Customer</label>
+          <select class="form-select" name="default_vendor"><option value="">— None —</option></select></div>
+        <div class="col-md-4"><label class="form-label">Monthly Salary
+          <i class="bi bi-info-circle text-muted" title="Driver salary this vehicle earns per month - used by the salary engine"></i></label>
+          <input type="number" step="0.01" class="form-control" name="monthly_salary"></div>
         <div class="col-md-6"><label class="form-label">RC Number</label>
           <input class="form-control" name="rc_number"></div>
-        <div class="col-md-4"><label class="form-label">RC Expiry</label>
+        <div class="col-md-6"><label class="form-label">RC Expiry</label>
           <input type="date" class="form-control" name="rc_expiry"></div>
         <div class="col-md-4"><label class="form-label">Fitness Expiry</label>
           <input type="date" class="form-control" name="fitness_expiry_date"></div>
@@ -121,7 +126,7 @@ function applyFilters() {
   if (q) rows = rows.filter(v => `${v.vehicle_number} ${v.default_driver} ${v.vehicle_type}`.toLowerCase().includes(q));
   if (statuses.length) rows = rows.filter(v => statuses.includes(v.vehicle_status || "Active"));
   renderRows("vehicleBody", rows, v => `<tr>
-    <td><a href="/vehicles/${v.vehicle_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(v.vehicle_number)}</a></td>
+    <td><a href="/vehicles/details/${v.vehicle_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(v.vehicle_number)}</a></td>
     <td>${esc(v.vehicle_type || "-")}</td>
     <td>${esc(v.default_driver || "-")}</td>
     <td>${statusBadge(v.vehicle_status || "Active")}</td>
@@ -132,7 +137,7 @@ function applyFilters() {
       ? `<span class="badge-soft warning">EMI ${fmtMoney(v.emi_amount)}</span>`
       : '<span class="badge-soft muted">No Loan</span>'}</td>
     ${actionButtons(v.vehicle_id,
-      `<a class="btn-icon-sm" href="/vehicles/${v.vehicle_id}" title="Details"><i class="bi bi-eye"></i></a>`)}
+      `<a class="btn-icon-sm" href="/vehicles/details/${v.vehicle_id}" title="Details"><i class="bi bi-eye"></i></a>`)}
   </tr>`, "No vehicles added yet");
 }
 
@@ -172,14 +177,12 @@ async function deleteRecord(id) {
 }
 
 loadVehicles();
-loadDriverOptionsInto();
-async function loadDriverOptionsInto() {
-  try {
-    const drivers = await api("/api/drivers");
-    fillSelect(document.querySelector('#vehicleForm [name="default_driver"]'),
-      drivers.filter(d => (d.status || "Active") === "Active"),
-      { value: d => d.driver_name, label: d => d.driver_name });
-  } catch (e) {}
-}
+api("/api/drivers").then(drivers => fillSelect(
+  document.querySelector('#vehicleForm [name="default_driver"]'),
+  drivers.filter(d => (d.status || "Active") === "Active"),
+  { value: d => d.driver_name, label: d => d.driver_name })).catch(() => {});
+api("/api/vendors/list").then(d => fillSelect(
+  document.querySelector('#vehicleForm [name="default_vendor"]'),
+  d.rows.map(v => v.vendor_name))).catch(() => {});
 </script>
 {% endblock %}

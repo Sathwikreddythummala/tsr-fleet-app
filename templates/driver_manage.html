@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Driver App{% endblock %}
+{% block page_title %}Driver App{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Driver App Access</h4>
+    <div class="sub">Set each driver's PIN and share the install link</div></div>
+  <input class="form-control" id="fSearch" style="max-width:240px"
+         placeholder="Search name or mobile..." oninput="applyFilter()">
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-people"></i></div>
+    <div><div class="stat-label">Active Employees</div><div class="stat-value" id="stTotal">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-shield-check"></i></div>
+    <div><div class="stat-label">PIN Set</div><div class="stat-value text-success" id="stWithPin">—</div></div>
+  </div></div>
+  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
+    <div><div class="stat-label">No PIN Yet</div><div class="stat-value text-danger" id="stNoPin">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card animate-in mb-4">
+  <div class="section-title"><i class="bi bi-phone"></i> Install on a driver's phone</div>
+  <div class="install-box">
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      <code id="installUrl" style="font-size:13px">{{ install_url }}</code>
+      <button class="btn btn-ghost btn-sm" onclick="copyLink()">
+        <i class="bi bi-clipboard me-1"></i> Copy link</button>
+    </div>
+    <ol class="mb-0 text-muted" style="font-size:12.8px;padding-left:18px">
+      <li>Send the link to the driver on WhatsApp.</li>
+      <li>They open it in Chrome, then tap <b>⋮ → Add to Home screen</b> (iPhone: Share → Add to Home Screen).</li>
+      <li>The app opens full screen. They sign in with their mobile number and the PIN you set below.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Employee</th><th>Type</th><th>Mobile</th><th>Vehicle</th>
+        <th>PIN Status</th><th>Set / Reset PIN</th>
+      </tr></thead>
+      <tbody id="pinBody"><tr><td colspan="6"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let rows = [];
+
+async function loadPins() {
+  setLoading("pinBody");
+  try {
+    const data = await api("/api/drivers/pins/list");
+    rows = data.rows;
+    setText("stTotal", data.total);
+    setText("stWithPin", data.with_pin);
+    setText("stNoPin", data.total - data.with_pin);
+    applyFilter();
+  } catch (e) { toastError(e); }
+}
+
+function applyFilter() {
+  const q = document.getElementById("fSearch").value.toLowerCase();
+  const list = q ? rows.filter(r =>
+    `${r.driver_name} ${r.mobile_number}`.toLowerCase().includes(q)) : rows;
+  renderRows("pinBody", list, r => `<tr>
+    <td class="fw-bold">${esc(r.driver_name)}</td>
+    <td>${esc(r.employee_type)}</td>
+    <td>${r.mobile_number ? esc(r.mobile_number)
+         : '<span class="badge-soft danger">No mobile</span>'}</td>
+    <td>${esc(r.assigned_vehicle || "-")}</td>
+    <td>${r.has_pin ? '<span class="badge-soft success">PIN set</span>'
+                    : '<span class="badge-soft warning">Not set</span>'}</td>
+    <td class="text-nowrap admin-only">
+      <div class="d-flex gap-1 align-items-center">
+        <input class="form-control form-control-sm" style="width:96px" maxlength="6"
+               inputmode="numeric" placeholder="4-6 digits" id="pin-${r.driver_id}">
+        <button class="btn btn-gold btn-sm" onclick="savePin('${r.driver_id}')">Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="generatePin('${r.driver_id}')"
+                title="Generate a random PIN"><i class="bi bi-shuffle"></i></button>
+        ${r.has_pin ? `<button class="btn-icon-sm danger" onclick="clearPin('${r.driver_id}')"
+                title="Remove PIN"><i class="bi bi-x-circle"></i></button>` : ""}
+      </div>
+    </td>
+  </tr>`, "No active employees");
+}
+
+async function savePin(driverId, generate = false) {
+  const input = document.getElementById(`pin-${driverId}`);
+  const pin = generate ? "" : (input ? input.value.trim() : "");
+  if (!generate && !/^\d{4,6}$/.test(pin)) return toast("PIN must be 4 to 6 digits", "error");
+  try {
+    const res = await api("/api/drivers/pins/set",
+      { method: "POST", body: { driver_id: driverId, pin, generate } });
+    toast(`PIN for ${res.driver_name}: ${res.pin} — share it with them`);
+    if (input) input.value = res.pin;
+    loadPins();
+  } catch (e) { toastError(e); }
+}
+
+function generatePin(driverId) { savePin(driverId, true); }
+
+async function clearPin(driverId) {
+  if (!confirm("Remove this driver's PIN? They will not be able to sign in.")) return;
+  try {
+    await api("/api/drivers/pins/clear", { method: "POST", body: { driver_id: driverId } });
+    toast("PIN removed");
+    loadPins();
+  } catch (e) { toastError(e); }
+}
+
+function copyLink() {
+  const url = document.getElementById("installUrl").textContent;
+  navigator.clipboard.writeText(url)
+    .then(() => toast("Install link copied"))
+    .catch(() => toast("Copy failed - select the link manually", "error"));
+}
+
+loadPins();
+</script>
+{% endblock %}

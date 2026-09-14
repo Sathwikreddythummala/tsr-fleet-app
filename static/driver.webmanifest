@@ -1,0 +1,15 @@
+{
+  "name": "TSR Enterprises Driver",
+  "short_name": "TSR Driver",
+  "description": "Log diesel and check your salary, advance and meals.",
+  "start_url": "/driver-portal",
+  "scope": "/driver-portal",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFDE7",
+  "theme_color": "#FFC107",
+  "icons": [
+    { "src": "/company/logo", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/company/logo", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

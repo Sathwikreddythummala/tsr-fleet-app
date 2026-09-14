@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Company Profile{% endblock %}
+{% block page_title %}Company Profile{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Company Profile</h4>
+    <div class="sub">Branding, business details and default tax rates used across the app</div></div>
+  <button class="btn btn-gold admin-only" onclick="saveProfile()">
+    <i class="bi bi-check-lg me-1"></i> Save Changes</button>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="glass-card animate-in text-center mb-3">
+      <div class="section-title justify-content-center"><i class="bi bi-image"></i> Logo</div>
+      <img src="/company/logo" alt="Logo" id="logoPreview" class="login-logo-img mb-3"
+           style="width:110px;height:110px">
+      <div class="admin-only">
+        <input type="file" class="form-control form-control-sm mb-2" id="logoFile" accept="image/*">
+        <div class="d-flex gap-2">
+          <button class="btn btn-gold btn-sm flex-fill" onclick="uploadLogo()">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+          <button class="btn btn-ghost btn-sm" onclick="removeLogo()" title="Remove logo">
+            <i class="bi bi-trash"></i></button>
+        </div>
+        <small class="text-muted d-block mt-2">PNG or JPG, square, under 2 MB.
+          Shown in the sidebar, login page and browser tab.</small>
+      </div>
+    </div>
+
+    <div class="glass-card animate-in">
+      <div class="section-title"><i class="bi bi-percent"></i> Default Tax Rates</div>
+      <div class="row g-2">
+        <div class="col-4"><label class="form-label">SGST %</label>
+          <input type="number" step="0.01" class="form-control" id="sgst_rate"></div>
+        <div class="col-4"><label class="form-label">CGST %</label>
+          <input type="number" step="0.01" class="form-control" id="cgst_rate"></div>
+        <div class="col-4"><label class="form-label">TDS %</label>
+          <input type="number" step="0.01" class="form-control" id="tds_rate"></div>
+        <div class="col-12"><label class="form-label">Invoice Prefix</label>
+          <input class="form-control" id="invoice_prefix" placeholder="INV"></div>
+      </div>
+      <small class="text-muted d-block mt-2">
+        Applied automatically to new bills and GST purchases. You can still override
+        any individual bill.</small>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="glass-card animate-in mb-3">
+      <div class="section-title"><i class="bi bi-buildings"></i> Identity</div>
+      <div class="row g-3">
+        <div class="col-md-7"><label class="form-label">Company Name</label>
+          <input class="form-control" id="company_name"></div>
+        <div class="col-md-5"><label class="form-label">Subtitle</label>
+          <input class="form-control" id="company_subtitle"></div>
+        <div class="col-md-6"><label class="form-label">GST Number</label>
+          <input class="form-control" id="gst_number" style="text-transform:uppercase" maxlength="15"></div>
+        <div class="col-md-6"><label class="form-label">PAN Number</label>
+          <input class="form-control" id="pan_number" style="text-transform:uppercase" maxlength="10"></div>
+      </div>
+    </div>
+
+    <div class="glass-card animate-in mb-3">
+      <div class="section-title"><i class="bi bi-geo-alt"></i> Contact</div>
+      <div class="row g-3">
+        <div class="col-12"><label class="form-label">Address</label>
+          <input class="form-control" id="address"></div>
+        <div class="col-md-4"><label class="form-label">City</label>
+          <input class="form-control" id="city"></div>
+        <div class="col-md-4"><label class="form-label">State</label>
+          <input class="form-control" id="state"></div>
+        <div class="col-md-4"><label class="form-label">Pincode</label>
+          <input class="form-control" id="pincode" maxlength="6"></div>
+        <div class="col-md-4"><label class="form-label">Phone</label>
+          <input class="form-control" id="phone"></div>
+        <div class="col-md-4"><label class="form-label">Email</label>
+          <input type="email" class="form-control" id="email"></div>
+        <div class="col-md-4"><label class="form-label">Website</label>
+          <input class="form-control" id="website"></div>
+      </div>
+    </div>
+
+    <div class="glass-card animate-in">
+      <div class="section-title"><i class="bi bi-bank"></i> Bank Details</div>
+      <div class="row g-3">
+        <div class="col-md-5"><label class="form-label">Bank Name</label>
+          <input class="form-control" id="bank_name"></div>
+        <div class="col-md-4"><label class="form-label">Account Number</label>
+          <input class="form-control" id="bank_account"></div>
+        <div class="col-md-3"><label class="form-label">IFSC Code</label>
+          <input class="form-control" id="bank_ifsc" style="text-transform:uppercase"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const FIELDS = ["company_name", "company_subtitle", "gst_number", "pan_number",
+  "address", "city", "state", "pincode", "phone", "email", "website",
+  "bank_name", "bank_account", "bank_ifsc", "invoice_prefix",
+  "sgst_rate", "cgst_rate", "tds_rate"];
+
+async function loadProfile() {
+  try {
+    const data = await api("/api/company/profile");
+    FIELDS.forEach(f => {
+      const el = document.getElementById(f);
+      if (el) el.value = data[f] || "";
+    });
+  } catch (e) { toastError(e); }
+}
+
+async function saveProfile() {
+  const body = {};
+  FIELDS.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) body[f] = el.value.trim();
+  });
+  if (!body.company_name) return toast("Company name is required", "error");
+  try {
+    await api("/api/company/profile", { method: "POST", body });
+    toast("Profile saved — reloading to apply branding");
+    setTimeout(() => window.location.reload(), 900);
+  } catch (e) { toastError(e); }
+}
+
+async function uploadLogo() {
+  const file = document.getElementById("logoFile").files[0];
+  if (!file) return toast("Choose an image first", "error");
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    await api("/api/company/logo", { method: "POST", body: fd });
+    toast("Logo updated — reloading");
+    setTimeout(() => window.location.reload(), 900);
+  } catch (e) { toastError(e); }
+}
+
+async function removeLogo() {
+  if (!confirm("Remove the company logo?")) return;
+  try {
+    await api("/api/company/logo", { method: "DELETE" });
+    toast("Logo removed — reloading");
+    setTimeout(() => window.location.reload(), 900);
+  } catch (e) { toastError(e); }
+}
+
+loadProfile();
+</script>
+{% endblock %}

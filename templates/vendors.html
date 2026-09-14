@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Customers &amp; Vendors</h4>
+    <div class="sub">The companies you raise invoices to</div></div>
+  <button class="btn btn-gold admin-only" onclick="openAdd()">
+    <i class="bi bi-plus-lg me-1"></i> Add Customer</button>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Name, contact, GST..." oninput="debouncedLoad()"></div>
+  <div><label class="form-label">Status</label><div id="fStatus"></div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Customer</th><th>Contact Person</th><th>Mobile</th><th>GST Number</th>
+        <th>Payment Terms</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="vendorBody"><tr><td colspan="7"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="vendorModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="vendorModalTitle">Add Customer</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="vendorForm" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Customer Name *</label>
+          <input class="form-control" name="vendor_name" required></div>
+        <div class="col-md-3"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Inactive</option></select></div>
+        <div class="col-md-3"><label class="form-label">Payment Terms</label>
+          <input class="form-control" name="payment_terms" placeholder="e.g. 30 days"></div>
+        <div class="col-md-4"><label class="form-label">Contact Person</label>
+          <input class="form-control" name="contact_person"></div>
+        <div class="col-md-4"><label class="form-label">Mobile</label>
+          <input class="form-control" name="mobile_number" maxlength="10"></div>
+        <div class="col-md-4"><label class="form-label">Email</label>
+          <input type="email" class="form-control" name="email"></div>
+        <div class="col-md-4"><label class="form-label">GST Number</label>
+          <input class="form-control" name="gst_number" style="text-transform:uppercase" maxlength="15"></div>
+        <div class="col-md-8"><label class="form-label">Address</label>
+          <input class="form-control" name="address"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveVendor()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let vendors = [], editingId = null;
+const msStatus = multiSelect("fStatus", { placeholder: "All Statuses",
+  options: ["Active", "Inactive"], onChange: () => loadVendors() });
+
+async function loadVendors() {
+  setLoading("vendorBody");
+  const params = new URLSearchParams({
+    search: document.getElementById("fSearch").value,
+    status: msStatus.values().join(","),
+  });
+  try {
+    const data = await api(`/api/vendors/list?${params}`);
+    vendors = data.rows;
+    renderRows("vendorBody", data.rows, v => `<tr>
+      <td class="fw-bold">${esc(v.vendor_name)}</td>
+      <td>${esc(v.contact_person || "-")}</td>
+      <td>${esc(v.mobile_number || "-")}</td>
+      <td>${esc(v.gst_number || "-")}</td>
+      <td>${esc(v.payment_terms || "-")}</td>
+      <td>${statusBadge(v.status || "Active")}</td>
+      ${actionButtons(v.vendor_id)}
+    </tr>`, "No customers added yet");
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadVendors, 300);
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("vendorModalTitle").textContent = "Add Customer";
+  fillForm(document.getElementById("vendorForm"), null);
+  openModal("vendorModal");
+}
+
+function editRecord(id) {
+  const v = vendors.find(x => x.vendor_id === id);
+  if (!v) return;
+  editingId = id;
+  document.getElementById("vendorModalTitle").textContent = "Edit " + v.vendor_name;
+  fillForm(document.getElementById("vendorForm"), v);
+  openModal("vendorModal");
+}
+
+async function saveVendor() {
+  const data = formData(document.getElementById("vendorForm"));
+  if (!data.vendor_name) return toast("Customer name is required", "error");
+  try {
+    if (editingId) await api(`/api/vendors/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/vendors/add", { method: "POST", body: data });
+    closeModal("vendorModal");
+    toast(editingId ? "Customer updated" : "Customer added");
+    loadVendors();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  const v = vendors.find(x => x.vendor_id === id);
+  if (!confirm(`Delete ${v ? v.vendor_name : "this customer"}?`)) return;
+  try { await api(`/api/vendors/${id}`, { method: "DELETE" }); toast("Customer deleted"); loadVendors(); }
+  catch (e) { toastError(e); }
+}
+
+loadVendors();
+</script>
+{% endblock %}

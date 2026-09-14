@@ -55,6 +55,18 @@
     <div class="stat-icon"><i class="bi bi-coin"></i></div>
     <div><div class="stat-label">Mithi Pending / Main Pending</div><div class="stat-value" id="stMithi">—</div></div>
   </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-house-heart-fill"></i></div>
+    <div><div class="stat-label">House Expense (month)</div><div class="stat-value" id="stHouse">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Trip Income</div><div class="stat-value text-success" id="stTripIncome">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-journal-bookmark"></i></div>
+    <div><div class="stat-label">Fuel Credit (Katha)</div><div class="stat-value text-danger" id="stKatha">—</div></div>
+  </div></div>
 </div>
 
 <div class="row g-3 mb-4">
@@ -81,7 +93,7 @@
 
 {% block scripts %}
 <script>
-const GOLD = ["#D4A017", "#FFC107", "#FFD54F", "#F59E0B", "#B8860B", "#E6B800", "#8B6914"];
+const GOLD = ["#FFD54F", "#FFC107", "#FFB300", "#FF8F00", "#F9A825", "#FFA000", "#F57F17", "#FFE082"];
 
 async function loadDashboard() {
   try {
@@ -97,6 +109,9 @@ async function loadDashboard() {
     setText("stFleet", s.active_vehicles + " / " + s.active_drivers);
     setText("stPurse", fmtMoney(s.purse_balance));
     setText("stMithi", fmtMoney(s.mithi_pending) + " / " + fmtMoney(s.main_amount_pending));
+    setText("stHouse", fmtMoney(s.house_expense_month));
+    setText("stTripIncome", fmtMoney(s.trip_income));
+    setText("stKatha", fmtMoney(s.fuel_credit));
 
     renderRows("recentBody", s.recent_expenses, e => `<tr>
       <td>${fmtDate(e.expense_date)}</td>
@@ -112,7 +127,7 @@ async function loadDashboard() {
                animations: { enabled: true, speed: 700 } },
       series: [{ name: "Income", data: s.chart_income }, { name: "Expense", data: s.chart_expense }],
       xaxis: { categories: s.chart_months },
-      colors: ["#16A34A", "#D4A017"],
+      colors: ["#43A047", "#FFB300"],
       plotOptions: { bar: { borderRadius: 6, columnWidth: "45%" } },
       dataLabels: { enabled: false },
       grid: { borderColor: "rgba(212,160,23,.15)" },

@@ -10,20 +10,20 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 
 from services import sheets_service as ss
 from utils import duplicate_check
-from utils.permissions import require_admin, require_admin_or_viewer
+from utils.permissions import require_editor, require_view
 from utils.templates import render
 
 router = APIRouter(tags=["mithi"])
 
 
 @router.get("/mithi")
-async def mithi_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def mithi_page(request: Request, user=Depends(require_view)):
     return render(request, "mithi.html")
 
 
 @router.get("/api/mithi/persons")
 async def list_persons(status: str = "", search: str = "",
-                       user=Depends(require_admin_or_viewer)):
+                       user=Depends(require_view)):
     payments = ss.get_all_records("mithipayments")
     rows = []
     for person in ss.get_all_records("mithipersons"):
@@ -48,7 +48,7 @@ async def list_persons(status: str = "", search: str = "",
 
 
 @router.get("/api/mithi/persons/{person_id}")
-async def get_person(person_id: str, user=Depends(require_admin_or_viewer)):
+async def get_person(person_id: str, user=Depends(require_view)):
     person = ss.find_record_by_id("mithipersons", person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Mithi person not found")
@@ -62,7 +62,7 @@ async def get_person(person_id: str, user=Depends(require_admin_or_viewer)):
 
 
 @router.post("/api/mithi/persons")
-async def add_person(request: Request, user=Depends(require_admin)):
+async def add_person(request: Request, user=Depends(require_editor)):
     data = await request.json()
     if not (data.get("person_name") or "").strip():
         raise HTTPException(status_code=400, detail="Person name is required")
@@ -81,7 +81,7 @@ async def add_person(request: Request, user=Depends(require_admin)):
 
 
 @router.put("/api/mithi/persons/{person_id}")
-async def update_person(person_id: str, request: Request, user=Depends(require_admin)):
+async def update_person(person_id: str, request: Request, user=Depends(require_editor)):
     data = await request.json()
     person = ss.find_record_by_id("mithipersons", person_id)
     if not person:
@@ -98,7 +98,7 @@ async def update_person(person_id: str, request: Request, user=Depends(require_a
 
 
 @router.post("/api/mithi/persons/{person_id}/close")
-async def close_person(person_id: str, request: Request, user=Depends(require_admin)):
+async def close_person(person_id: str, request: Request, user=Depends(require_editor)):
     """Mark the main amount as returned and close the Mithi person."""
     data = await request.json()
     person = ss.find_record_by_id("mithipersons", person_id)
@@ -115,7 +115,7 @@ async def close_person(person_id: str, request: Request, user=Depends(require_ad
 
 
 @router.delete("/api/mithi/persons/{person_id}")
-async def delete_person(person_id: str, user=Depends(require_admin)):
+async def delete_person(person_id: str, user=Depends(require_editor)):
     person = ss.find_record_by_id("mithipersons", person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Mithi person not found")
@@ -130,17 +130,17 @@ async def delete_person(person_id: str, user=Depends(require_admin)):
 
 @router.post("/api/mithi/persons/{person_id}/documents")
 async def upload_mithi_document(person_id: str, document_type: str = Form(...),
-                                file: UploadFile = File(...), user=Depends(require_admin)):
+                                file: UploadFile = File(...), user=Depends(require_editor)):
     if not ss.find_record_by_id("mithipersons", person_id):
         raise HTTPException(status_code=404, detail="Mithi person not found")
-    from routes.vehicles import upload_entity_document
-    return await upload_entity_document("mithi", person_id, document_type, file, user)
+    from routes.documents import store_document
+    return await store_document("mithi", person_id, document_type, file, user)
 
 
 # ------------------------------------------------------------------- payments
 
 @router.post("/api/mithi/payments")
-async def add_payment(request: Request, user=Depends(require_admin)):
+async def add_payment(request: Request, user=Depends(require_editor)):
     data = await request.json()
     person = ss.find_record_by_id("mithipersons", data.get("mithi_person_id", ""))
     if not person:
@@ -161,7 +161,7 @@ async def add_payment(request: Request, user=Depends(require_admin)):
 
 
 @router.put("/api/mithi/payments/{payment_id}")
-async def update_payment(payment_id: str, request: Request, user=Depends(require_admin)):
+async def update_payment(payment_id: str, request: Request, user=Depends(require_editor)):
     data = await request.json()
     if not ss.find_record_by_id("mithipayments", payment_id):
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -174,7 +174,7 @@ async def update_payment(payment_id: str, request: Request, user=Depends(require
 
 
 @router.delete("/api/mithi/payments/{payment_id}")
-async def delete_payment(payment_id: str, user=Depends(require_admin)):
+async def delete_payment(payment_id: str, user=Depends(require_editor)):
     if not ss.find_record_by_id("mithipayments", payment_id):
         raise HTTPException(status_code=404, detail="Payment not found")
     ss.delete_record("mithipayments", payment_id)

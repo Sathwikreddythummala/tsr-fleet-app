@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Outside Vehicles{% endblock %}
+{% block page_title %}Outside Vehicles{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Outside (Hired) Vehicles</h4>
+    <div class="sub">Third-party vehicles and what you owe their owners — excluded from fleet P&amp;L</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost admin-only" onclick="openTransaction()">
+      <i class="bi bi-cash-coin me-1"></i> Add Transaction</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()">
+      <i class="bi bi-plus-lg me-1"></i> Add Vehicle</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-truck"></i></div>
+    <div><div class="stat-label">Active Vehicles</div><div class="stat-value" id="stActive">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div><div class="stat-label">Total Charges</div><div class="stat-value" id="stCharges">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+    <div><div class="stat-label">Paid</div><div class="stat-value text-success" id="stPaid">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+    <div><div class="stat-label">Balance Due</div><div class="stat-value text-danger" id="stBalance">—</div></div>
+  </div></div>
+</div>
+
+<ul class="nav nav-pills mb-3 animate-in">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabVehicles">Vehicles</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabTransactions">Transactions</button></li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tabVehicles">
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Vehicle</th><th>Owner</th><th>Mobile</th><th>Bank</th>
+            <th class="text-end">Charges</th><th class="text-end">Paid</th>
+            <th class="text-end">Balance</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="vehicleBody"><tr><td colspan="9"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="tabTransactions">
+    <div class="glass-card filter-bar mb-3 animate-in">
+      <div><label class="form-label">Month</label>
+        <input type="month" class="form-control" id="fMonth"></div>
+      <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+      <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+      <div><label class="form-label">Vehicle</label><div id="fVehicle"></div></div>
+    </div>
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Date</th><th>Vehicle</th><th>Owner</th><th>Type</th><th>Category</th>
+            <th>Description</th><th class="text-end">Amount</th><th>Mode</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="transBody"><tr><td colspan="9"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="vehicleModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="vehicleModalTitle">Add Outside Vehicle</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="vehicleForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Vehicle Number *</label>
+          <input class="form-control" name="vehicle_number" style="text-transform:uppercase" required></div>
+        <div class="col-6"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Inactive</option></select></div>
+        <div class="col-6"><label class="form-label">Owner Name</label>
+          <input class="form-control" name="owner_name"></div>
+        <div class="col-6"><label class="form-label">Mobile</label>
+          <input class="form-control" name="mobile_number" maxlength="10"></div>
+        <div class="col-12"><label class="form-label">Bank Name</label>
+          <input class="form-control" name="bank_name"></div>
+        <div class="col-6"><label class="form-label">Account Number</label>
+          <input class="form-control" name="account_number"></div>
+        <div class="col-6"><label class="form-label">IFSC Code</label>
+          <input class="form-control" name="ifsc_code" style="text-transform:uppercase"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveVehicle()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="transModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Transaction</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="transForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="date"></div>
+        <div class="col-6"><label class="form-label">For Month</label>
+          <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-12"><label class="form-label">Vehicle *</label>
+          <select class="form-select" name="vehicle_number"><option value="">— Select —</option></select></div>
+        <div class="col-6"><label class="form-label">Type *</label>
+          <select class="form-select" name="type">
+            <option>Hire Charge</option><option>Payment</option>
+            <option>Advance</option><option>Other</option></select></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-6"><label class="form-label">Category</label>
+          <input class="form-control" name="category"></div>
+        <div class="col-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveTransaction()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let vehicles = [], transactions = [], editingId = null;
+const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles",
+  onChange: () => loadTransactions() });
+
+async function loadVehicles() {
+  setLoading("vehicleBody");
+  try {
+    const data = await api("/api/outside/vehicles");
+    vehicles = data.rows;
+    renderRows("vehicleBody", data.rows, v => `<tr>
+      <td class="fw-bold">${esc(v.vehicle_number)}</td>
+      <td>${esc(v.owner_name || "-")}</td>
+      <td>${esc(v.mobile_number || "-")}</td>
+      <td>${esc(v.bank_name || "-")}<br><small class="text-muted">${esc(v.account_number || "")}</small></td>
+      <td class="text-end">${fmtMoney(v.total_charges)}</td>
+      <td class="text-end text-success">${fmtMoney(v.total_paid)}</td>
+      <td class="text-end fw-bold ${v.balance > 0 ? "text-danger" : "text-success"}">${fmtMoney(v.balance)}</td>
+      <td>${statusBadge(v.status || "Active")}</td>
+      ${actionButtons(v.ov_id)}
+    </tr>`, "No outside vehicles added");
+    const names = data.rows.map(v => v.vehicle_number);
+    msVehicle.setOptions(names);
+    fillSelect(document.querySelector('#transForm [name="vehicle_number"]'), names);
+  } catch (e) { toastError(e); }
+}
+
+async function loadTransactions() {
+  setLoading("transBody");
+  const params = new URLSearchParams({
+    month: document.getElementById("fMonth").value,
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    vehicle: msVehicle.values().join(","),
+  });
+  try {
+    const data = await api(`/api/outside/transactions?${params}`);
+    transactions = data.rows;
+    renderRows("transBody", data.rows, t => `<tr>
+      <td>${fmtDate(t.date)}</td>
+      <td class="fw-bold">${esc(t.vehicle_number)}</td>
+      <td>${esc(t.owner_name || "-")}</td>
+      <td><span class="badge-soft ${["Payment","Advance"].includes(t.type) ? "success" : "warning"}">${esc(t.type)}</span></td>
+      <td>${esc(t.category || "-")}</td>
+      <td>${esc(t.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(t.amount)}</td>
+      <td>${esc(t.payment_mode || "-")}</td>
+      <td><button class="btn-icon-sm danger admin-only" onclick="deleteTransaction('${t.trans_id}')">
+        <i class="bi bi-trash"></i></button></td>
+    </tr>`, "No transactions match the filters");
+  } catch (e) { toastError(e); }
+}
+
+async function loadSummary() {
+  try {
+    const s = await api("/api/outside/summary");
+    setText("stActive", s.active_vehicles);
+    setText("stCharges", fmtMoney(s.total_charges));
+    setText("stPaid", fmtMoney(s.total_paid));
+    setText("stBalance", fmtMoney(s.balance));
+  } catch (e) { toastError(e); }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("vehicleModalTitle").textContent = "Add Outside Vehicle";
+  fillForm(document.getElementById("vehicleForm"), null);
+  openModal("vehicleModal");
+}
+
+function editRecord(id) {
+  const v = vehicles.find(x => x.ov_id === id);
+  if (!v) return;
+  editingId = id;
+  document.getElementById("vehicleModalTitle").textContent = "Edit " + v.vehicle_number;
+  fillForm(document.getElementById("vehicleForm"), v);
+  openModal("vehicleModal");
+}
+
+async function saveVehicle() {
+  const data = formData(document.getElementById("vehicleForm"));
+  if (!data.vehicle_number) return toast("Vehicle number is required", "error");
+  try {
+    if (editingId) await api(`/api/outside/vehicles/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/outside/vehicles", { method: "POST", body: data });
+    closeModal("vehicleModal");
+    toast(editingId ? "Vehicle updated" : "Vehicle added");
+    loadVehicles(); loadSummary();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteRecord(id) {
+  const v = vehicles.find(x => x.ov_id === id);
+  if (!confirm(`Delete ${v ? v.vehicle_number : "this vehicle"} and all its transactions?`)) return;
+  try {
+    await api(`/api/outside/vehicles/${id}`, { method: "DELETE" });
+    toast("Deleted"); loadVehicles(); loadTransactions(); loadSummary();
+  } catch (e) { toastError(e); }
+}
+
+function openTransaction() {
+  const form = document.getElementById("transForm");
+  fillForm(form, null);
+  form.date.value = today();
+  form.for_month.value = thisMonth();
+  openModal("transModal");
+}
+
+async function saveTransaction() {
+  const data = formData(document.getElementById("transForm"));
+  if (!data.vehicle_number) return toast("Choose a vehicle", "error");
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    await api("/api/outside/transactions", { method: "POST", body: data });
+    closeModal("transModal");
+    toast("Transaction added");
+    loadTransactions(); loadVehicles(); loadSummary();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteTransaction(id) {
+  if (!confirm("Delete this transaction?")) return;
+  try {
+    await api(`/api/outside/transactions/${id}`, { method: "DELETE" });
+    toast("Deleted"); loadTransactions(); loadVehicles(); loadSummary();
+  } catch (e) { toastError(e); }
+}
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo",
+                    onChange: () => loadTransactions() });
+
+loadVehicles();
+loadTransactions();
+loadSummary();
+</script>
+{% endblock %}

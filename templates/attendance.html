@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Monthly Attendance</h4>
+    <div class="sub">Tap a day to cycle Present → Half Day → Absent → clear. Feeds the salary engine.</div></div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <input type="month" class="form-control" id="fMonth" style="width:auto" onchange="loadGrid()">
+    <div class="admin-only d-flex gap-2 align-items-center">
+      <input type="date" class="form-control" id="bulkDate" style="width:auto">
+      <button class="btn btn-ghost btn-sm" onclick="bulkMark('Present')">
+        <i class="bi bi-check2-all me-1"></i> All Present</button>
+      <button class="btn btn-ghost btn-sm" onclick="bulkMark('Absent')">All Absent</button>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-people"></i></div>
+    <div><div class="stat-label">Employees</div><div class="stat-value" id="stPeople">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+    <div><div class="stat-label">Present Days</div><div class="stat-value text-success" id="stPresent">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-circle-half"></i></div>
+    <div><div class="stat-label">Half Days</div><div class="stat-value" id="stHalf">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+    <div><div class="stat-label">Absent Days</div><div class="stat-value text-danger" id="stAbsent">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="d-flex flex-wrap gap-3 align-items-center p-3 pb-0" style="font-size:12px">
+    <span><span class="att-cell att-legend present" style="display:inline-grid;place-items:center">P</span> Present</span>
+    <span><span class="att-cell att-legend half" style="display:inline-grid;place-items:center">H</span> Half Day</span>
+    <span><span class="att-cell att-legend absent" style="display:inline-grid;place-items:center">A</span> Absent</span>
+    <span class="text-muted ms-auto" id="gridHint"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table attendance-grid mb-0" id="grid">
+      <thead id="gridHead"></thead>
+      <tbody id="gridBody"><tr><td><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CYCLE = ["", "Present", "Half Day", "Absent"];
+const LETTER = { "Present": "P", "Half Day": "H", "Absent": "A", "": "" };
+const CLASS = { "Present": "present", "Half Day": "half", "Absent": "absent", "": "" };
+let grid = null;
+
+document.getElementById("fMonth").value = thisMonth();
+document.getElementById("bulkDate").value = today();
+
+async function loadGrid() {
+  const month = document.getElementById("fMonth").value;
+  setLoading("gridBody");
+  try {
+    grid = await api(`/api/attendance/list?month=${month}`);
+    renderGrid();
+    const summary = await api(`/api/attendance/summary?month=${month}`);
+    setText("stPeople", grid.rows.length);
+    setText("stPresent", summary["Present"] || 0);
+    setText("stHalf", summary["Half Day"] || 0);
+    setText("stAbsent", summary["Absent"] || 0);
+  } catch (e) { toastError(e); }
+}
+
+function renderGrid() {
+  const { month, days, rows } = grid;
+  const head = ['<tr><th class="name-col">Employee</th>'];
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(`${month}-${String(d).padStart(2, "0")}`);
+    const weekend = date.getDay() === 0;
+    head.push(`<th class="${weekend ? "weekend" : ""}">${d}</th>`);
+  }
+  head.push('<th class="name-col" style="left:auto;min-width:70px">Days</th></tr>');
+  document.getElementById("gridHead").innerHTML = head.join("");
+
+  const body = rows.map(r => {
+    const cells = [`<td class="name-col">${esc(r.driver_name)}
+      <div class="text-muted" style="font-size:10px;font-weight:600">${esc(r.assigned_vehicle || r.employee_type)}</div></td>`];
+    for (let d = 1; d <= days; d++) {
+      const date = `${month}-${String(d).padStart(2, "0")}`;
+      const status = (r.entries[date] || {}).status || "";
+      cells.push(`<td><button class="att-cell ${CLASS[status]}" data-driver="${r.driver_id}"
+        data-date="${date}" data-status="${status}" onclick="cycle(this)">${LETTER[status]}</button></td>`);
+    }
+    cells.push(`<td class="name-col" style="left:auto"><b>${r.effective_days || 0}</b></td>`);
+    return `<tr>${cells.join("")}</tr>`;
+  });
+  document.getElementById("gridBody").innerHTML = body.length ? body.join("")
+    : `<tr><td colspan="${days + 2}"><div class="empty-state"><i class="bi bi-people"></i>No active employees</div></td></tr>`;
+  setText("gridHint", `${rows.length} employees · ${days} days`);
+}
+
+async function cycle(btn) {
+  const next = CYCLE[(CYCLE.indexOf(btn.dataset.status) + 1) % CYCLE.length];
+  const previous = btn.dataset.status;
+  btn.dataset.status = next;
+  btn.textContent = LETTER[next];
+  btn.className = `att-cell ${CLASS[next]}`;
+  try {
+    await api("/api/attendance/mark", { method: "POST", body: {
+      driver_id: btn.dataset.driver, date: btn.dataset.date, status: next } });
+  } catch (e) {
+    btn.dataset.status = previous;
+    btn.textContent = LETTER[previous];
+    btn.className = `att-cell ${CLASS[previous]}`;
+    toastError(e);
+  }
+}
+
+async function bulkMark(status) {
+  const date = document.getElementById("bulkDate").value;
+  if (!date) return toast("Choose a date first", "error");
+  if (!confirm(`Mark every active employee ${status} on ${date}?`)) return;
+  try {
+    const res = await api("/api/attendance/bulk", { method: "POST", body: { date, status } });
+    toast(`${res.count} employees marked ${status}`);
+    loadGrid();
+  } catch (e) { toastError(e); }
+}
+
+loadGrid();
+</script>
+{% endblock %}

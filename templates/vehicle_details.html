@@ -134,7 +134,7 @@ async function uploadDoc() {
   fd.append("document_type", document.getElementById("docType").value);
   fd.append("file", file);
   try {
-    await api(`/api/vehicles/${VEHICLE_ID}/documents`, { method: "POST", body: fd });
+    await api(`/api/vehicles/${VEHICLE_ID}/upload`, { method: "POST", body: fd });
     toast("Document uploaded");
     document.getElementById("docFile").value = "";
     loadDocs();

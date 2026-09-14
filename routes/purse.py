@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from services import sheets_service as ss
-from utils.permissions import require_admin, require_admin_or_viewer
+from utils.permissions import require_editor, require_view
 from utils.templates import render
 
 router = APIRouter(tags=["purse"])
@@ -11,23 +11,32 @@ HOLDERS = ("TSR", "TRR")
 
 
 @router.get("/purse")
-async def purse_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def purse_page(request: Request, user=Depends(require_view)):
     return render(request, "purse.html")
 
 
 @router.get("/api/purse")
-async def list_purse(holder: str = "", user=Depends(require_admin_or_viewer)):
+async def list_purse(holder: str = "", month: str = "", date_from: str = "",
+                     date_to: str = "", user=Depends(require_view)):
     rows = ss.get_all_records("purse")
     holders = [h.strip() for h in (holder or "").split(",") if h.strip()]
     if holders:
         rows = [p for p in rows if p.get("holder") in holders]
+    months = [m.strip() for m in (month or "").split(",") if m.strip()]
+    if months:
+        rows = [p for p in rows
+                if any((p.get("date") or "").startswith(m) for m in months)]
+    if date_from:
+        rows = [p for p in rows if (p.get("date") or "") >= date_from]
+    if date_to:
+        rows = [p for p in rows if (p.get("date") or "") <= date_to]
     rows = sorted(rows, key=lambda p: (p.get("date") or "", p.get("created_date") or ""),
                   reverse=True)
     return {"rows": rows, "summary": _summary()}
 
 
 @router.post("/api/purse")
-async def add_purse(request: Request, user=Depends(require_admin)):
+async def add_purse(request: Request, user=Depends(require_editor)):
     data = await request.json()
     if data.get("holder") not in HOLDERS:
         raise HTTPException(status_code=400, detail="Holder must be TSR or TRR")
@@ -43,7 +52,7 @@ async def add_purse(request: Request, user=Depends(require_admin)):
 
 
 @router.delete("/api/purse/{purse_id}")
-async def delete_purse(purse_id: str, user=Depends(require_admin)):
+async def delete_purse(purse_id: str, user=Depends(require_editor)):
     entry = ss.find_record_by_id("purse", purse_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Purse entry not found")

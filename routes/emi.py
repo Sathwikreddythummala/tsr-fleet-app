@@ -5,19 +5,19 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from services import sheets_service as ss
 from utils import duplicate_check
-from utils.permissions import require_admin, require_admin_or_viewer
+from utils.permissions import require_editor, require_view
 from utils.templates import render
 
 router = APIRouter(tags=["emi"])
 
 
 @router.get("/emi")
-async def emi_page(request: Request, user=Depends(require_admin_or_viewer)):
+async def emi_page(request: Request, user=Depends(require_view)):
     return render(request, "emi.html")
 
 
 @router.get("/api/emi")
-async def list_emis(user=Depends(require_admin_or_viewer)):
+async def list_emis(user=Depends(require_view)):
     vehicle_emis = []
     for v in ss.get_all_records("vehicles"):
         if (v.get("loan_available") or "").lower() not in ("yes", "true"):
@@ -60,7 +60,7 @@ async def list_emis(user=Depends(require_admin_or_viewer)):
 
 
 @router.post("/api/emi")
-async def add_other_emi(request: Request, user=Depends(require_admin)):
+async def add_other_emi(request: Request, user=Depends(require_editor)):
     data = await request.json()
     if not (data.get("emi_name") or "").strip():
         raise HTTPException(status_code=400, detail="EMI name is required")
@@ -74,7 +74,7 @@ async def add_other_emi(request: Request, user=Depends(require_admin)):
 
 
 @router.put("/api/emi/{emi_id}")
-async def update_other_emi(emi_id: str, request: Request, user=Depends(require_admin)):
+async def update_other_emi(emi_id: str, request: Request, user=Depends(require_editor)):
     data = await request.json()
     if not ss.find_record_by_id("otheremis", emi_id):
         raise HTTPException(status_code=404, detail="EMI not found")
@@ -84,7 +84,7 @@ async def update_other_emi(emi_id: str, request: Request, user=Depends(require_a
 
 
 @router.delete("/api/emi/{emi_id}")
-async def delete_other_emi(emi_id: str, user=Depends(require_admin)):
+async def delete_other_emi(emi_id: str, user=Depends(require_editor)):
     if not ss.find_record_by_id("otheremis", emi_id):
         raise HTTPException(status_code=404, detail="EMI not found")
     ss.delete_record("otheremis", emi_id)
@@ -93,7 +93,7 @@ async def delete_other_emi(emi_id: str, user=Depends(require_admin)):
 
 
 @router.put("/api/emi/vehicle/{vehicle_id}")
-async def update_vehicle_emi(vehicle_id: str, request: Request, user=Depends(require_admin)):
+async def update_vehicle_emi(vehicle_id: str, request: Request, user=Depends(require_editor)):
     """Update or remove the loan/EMI details stored on a vehicle."""
     data = await request.json()
     if not ss.find_record_by_id("vehicles", vehicle_id):

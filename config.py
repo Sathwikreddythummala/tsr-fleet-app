@@ -32,13 +32,12 @@ class Settings:
     # Access control - comma separated list of emails allowed to bootstrap as admin
     ALLOWED_EMAILS = [e.strip().lower() for e in os.getenv("ALLOWED_EMAILS", "").split(",") if e.strip()]
 
-    # Driver OTP SMS (legacy fallback when Firebase is not configured)
+    # Optional SMS gateway (driver PIN delivery / reminders)
     FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY", "")
 
-    # Firebase Phone Authentication (driver OTP login)
-    FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY", "")
-    FIREBASE_AUTH_DOMAIN = os.getenv("FIREBASE_AUTH_DOMAIN", "")
-    FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "")
+    # Android driver app (TWA) - Digital Asset Links
+    ANDROID_PACKAGE_NAME = os.getenv("ANDROID_PACKAGE_NAME", "com.tsrenterprises.driver")
+    ANDROID_CERT_FINGERPRINT = os.getenv("ANDROID_CERT_FINGERPRINT", "")
 
 
 settings = Settings()

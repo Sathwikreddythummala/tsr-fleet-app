@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}House Expenses{% endblock %}
+{% block page_title %}House Expenses{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Household Expenses</h4>
+    <div class="sub">Rent, groceries, medical, school fees and everything else at home</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost" onclick="exportFile('excel')"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+    <button class="btn btn-ghost" onclick="exportFile('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Expense</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
+    <div><div class="stat-label">This Month</div><div class="stat-value text-danger" id="stMonth">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+    <div><div class="stat-label">Total (filtered)</div><div class="stat-value" id="stTotal">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-list-check"></i></div>
+    <div><div class="stat-label">Entries</div><div class="stat-value" id="stCount">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-pie-chart"></i></div>
+    <div><div class="stat-label">Top Category</div><div class="stat-value" id="stTop" style="font-size:15px">—</div></div>
+  </div></div>
+</div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth"></div>
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+  <div><label class="form-label">Sub Category</label><div id="fSub"></div></div>
+  <div><label class="form-label">Paid By</label><div id="fPaidBy"></div></div>
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Description..." oninput="debouncedLoad()"></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-7"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Monthly House Spend</div>
+    <div id="chartMonthly"><div class="spinner-gold"></div></div>
+  </div></div>
+  <div class="col-lg-5"><div class="glass-card animate-in">
+    <div class="section-title"><i class="bi bi-pie-chart-fill"></i> By Sub Category</div>
+    <div id="chartSplit"><div class="spinner-gold"></div></div>
+  </div></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>Sub Category</th><th>Description</th>
+        <th class="text-end">Amount</th><th>Mode</th><th>Paid By</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="houseBody"><tr><td colspan="7"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="houseModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="houseModalTitle">Add House Expense</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="houseForm" class="row g-3">
+        <div class="col-6"><label class="form-label">Date *</label>
+          <input type="date" class="form-control" name="expense_date" required></div>
+        <div class="col-6"><label class="form-label">For Month</label>
+          <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-12"><label class="form-label">Sub Category *</label>
+          <select class="form-select" name="sub_category">
+            {% for s in subcategories %}<option>{{ s }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+        <div class="col-4"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-4"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Card</option></select></div>
+        <div class="col-4"><label class="form-label">Paid By</label>
+          <select class="form-select" name="paid_by">
+            <option value="">Company</option><option>TSR</option><option>TRR</option></select></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveHouse()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SUBS = {{ subcategories | tojson }};
+const GOLD = ["#FFD54F", "#FFC107", "#FFB300", "#FF8F00", "#F9A825", "#FFA000", "#F57F17", "#FFE082"];
+let rows = [], editingId = null;
+
+const msSub = multiSelect("fSub", { placeholder: "All Sub Categories",
+  options: SUBS, onChange: () => loadHouse() });
+const msPaidBy = multiSelect("fPaidBy", { placeholder: "Anyone",
+  options: ["TSR", "TRR"], onChange: () => loadHouse() });
+
+function query() {
+  return new URLSearchParams({
+    month: document.getElementById("fMonth").value,
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    sub_category: msSub.values().join(","),
+    paid_by: msPaidBy.values().join(","),
+    search: document.getElementById("fSearch").value,
+  }).toString();
+}
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo", onChange: () => loadHouse() });
+
+async function loadHouse() {
+  setLoading("houseBody");
+  try {
+    const data = await api(`/api/house/list?${query()}`);
+    rows = data.rows;
+    setText("stMonth", fmtMoney(data.month_amount));
+    setText("stTotal", fmtMoney(data.total_amount));
+    setText("stCount", fmtNum(data.total));
+    const top = Object.entries(data.by_subcategory)[0];
+    setText("stTop", top ? `${top[0]}` : "—");
+    renderRows("houseBody", data.rows, e => `<tr>
+      <td>${fmtDate(e.expense_date)}</td>
+      <td><span class="badge-soft gold">${esc(e.sub_category || "Other")}</span></td>
+      <td>${esc(e.description || "-")}</td>
+      <td class="text-end fw-bold">${fmtMoney(e.amount)}</td>
+      <td>${esc(e.payment_mode || "-")}</td>
+      <td>${e.paid_by ? statusBadge(e.paid_by) : "Company"}</td>
+      ${actionButtons(e.expense_id)}
+    </tr>`, "No house expenses match the filters");
+    renderSplit(data.by_subcategory);
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadHouse, 350);
+
+function renderSplit(bySub) {
+  const entries = Object.entries(bySub).slice(0, 8);
+  const el = document.getElementById("chartSplit");
+  el.innerHTML = "";
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-pie-chart"></i>No data yet</div>';
+    return;
+  }
+  new ApexCharts(el, {
+    chart: { type: "donut", height: 260, fontFamily: "inherit" },
+    series: entries.map(e => Math.round(e[1])),
+    labels: entries.map(e => e[0]),
+    colors: GOLD, legend: { position: "bottom" },
+    dataLabels: { enabled: false },
+    plotOptions: { pie: { donut: { size: "66%" } } },
+  }).render();
+}
+
+async function loadChart() {
+  try {
+    const s = await api("/api/house/stats");
+    const el = document.getElementById("chartMonthly");
+    el.innerHTML = "";
+    new ApexCharts(el, {
+      chart: { type: "area", height: 260, toolbar: { show: false }, fontFamily: "inherit" },
+      series: [{ name: "House Expense", data: s.monthly_amount }],
+      xaxis: { categories: s.months },
+      colors: ["#FF8F00"], stroke: { curve: "smooth", width: 3 },
+      fill: { type: "gradient", gradient: { opacityFrom: .35, opacityTo: .05 } },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(212,160,23,.15)" },
+    }).render();
+  } catch (e) { /* chart optional */ }
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById("houseModalTitle").textContent = "Add House Expense";
+  const form = document.getElementById("houseForm");
+  fillForm(form, null);
+  form.expense_date.value = today();
+  form.for_month.value = thisMonth();
+  openModal("houseModal");
+}
+
+function editRecord(id) {
+  const e = rows.find(x => x.expense_id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById("houseModalTitle").textContent = "Edit House Expense";
+  fillForm(document.getElementById("houseForm"), e);
+  openModal("houseModal");
+}
+
+async function saveHouse(force = false) {
+  const data = formData(document.getElementById("houseForm"));
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  if (force) data.force = true;
+  try {
+    if (editingId) await api(`/api/house/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/house/add", { method: "POST", body: data });
+    closeModal("houseModal");
+    toast(editingId ? "House expense updated" : "House expense added");
+    loadHouse(); loadChart();
+  } catch (e) {
+    if (String(e.message).includes("already exists")
+        && confirm("A similar house expense already exists. Save anyway?")) {
+      return saveHouse(true);
+    }
+    toastError(e);
+  }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("Delete this house expense?")) return;
+  try { await api(`/api/house/${id}`, { method: "DELETE" }); toast("Deleted"); loadHouse(); loadChart(); }
+  catch (e) { toastError(e); }
+}
+
+function exportFile(kind) { window.location.href = `/api/house/export/${kind}?${query()}`; }
+
+loadHouse();
+loadChart();
+</script>
+{% endblock %}

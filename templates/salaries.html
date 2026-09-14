@@ -4,39 +4,108 @@
 
 {% block content %}
 <div class="page-head">
-  <div><h4>Monthly Salary Summary</h4><div class="sub">Salary + incentives − advance − meals − deductions</div></div>
+  <div><h4>Monthly Salaries</h4>
+    <div class="sub">Vehicle salary × attendance, minus advance, meals and deductions</div></div>
   <div class="d-flex gap-2 align-items-center">
     <input type="month" class="form-control" id="fMonth" style="width:auto" onchange="loadSalaries()">
-    <button class="btn btn-ghost" onclick="exportExcel()"><i class="bi bi-file-earmark-excel me-1"></i> Export Excel</button>
+    <button class="btn btn-ghost" onclick="exportExcel()"><i class="bi bi-file-earmark-excel me-1"></i> Export</button>
+    <button class="btn btn-gold admin-only" onclick="openComponent()"><i class="bi bi-plus-lg me-1"></i> Add Entry</button>
   </div>
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-people"></i></div>
-    <div><div class="stat-label">Active Employees</div><div class="stat-value" id="stCount">—</div></div>
+    <div><div class="stat-label">Employees</div><div class="stat-value" id="stCount">—</div></div>
   </div></div>
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
-    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
-    <div><div class="stat-label">Total Net Payable</div><div class="stat-value text-success" id="stNet">—</div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash"></i></div>
+    <div><div class="stat-label">Total Gross</div><div class="stat-value" id="stGross">—</div></div>
   </div></div>
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-arrow-up-right-circle"></i></div>
-    <div><div class="stat-label">Total Advances</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+    <div><div class="stat-label">Advances</div><div class="stat-value text-danger" id="stAdvance">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+    <div><div class="stat-label">Net Payable</div><div class="stat-value text-success" id="stNet">—</div></div>
   </div></div>
 </div>
 
-<div class="glass-card table-card animate-in">
-  <div class="table-responsive">
-    <table class="table table-premium">
-      <thead><tr>
-        <th>Employee</th><th>Type</th><th class="text-end">Salary</th><th class="text-end">Advance</th>
-        <th class="text-end">Meals</th><th class="text-end">Incentive</th><th class="text-end">Deduction</th>
-        <th class="text-end">Net Payable</th>
-      </tr></thead>
-      <tbody id="salaryBody"><tr><td colspan="8"><div class="spinner-gold"></div></td></tr></tbody>
-    </table>
+<ul class="nav nav-pills mb-3 animate-in">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabEmployees">By Employee</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabVehicles">By Vehicle</button></li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tabEmployees">
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Employee</th><th>Type</th><th class="text-end">Days</th>
+            <th class="text-end">Gross</th><th class="text-end">Incentive</th>
+            <th class="text-end">Salary Paid</th><th class="text-end">Advance</th>
+            <th class="text-end">Meals</th><th class="text-end">Deductions</th>
+            <th class="text-end">Net Payable</th><th></th>
+          </tr></thead>
+          <tbody id="salaryBody"><tr><td colspan="11"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+
+  <div class="tab-pane fade" id="tabVehicles">
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Vehicle</th><th class="text-end">Monthly Salary</th>
+            <th class="text-end">Days Worked</th><th class="text-end">Drivers</th>
+            <th class="text-end">Salary Cost</th>
+          </tr></thead>
+          <tbody id="vehicleBody"><tr><td colspan="5"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="componentModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Salary Entry</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="componentForm" class="row g-3">
+        <div class="col-12"><label class="form-label">Employee *</label>
+          <select class="form-select" name="driver_id"><option value="">— Select —</option></select></div>
+        <div class="col-6"><label class="form-label">Entry Type *</label>
+          <select class="form-select" name="sub_category" onchange="toggleIncentive(this.value)">
+            <option>Advance</option><option>Meals</option><option>Salary</option>
+            <option>Deductions</option><option value="Incentive">Incentive</option></select></div>
+        <div class="col-6"><label class="form-label">For Month</label>
+          <input type="month" class="form-control" name="for_month"></div>
+        <div class="col-6"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="expense_date"></div>
+        <div class="col-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-6"><label class="form-label">Payment Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Cash</option><option>UPI</option><option>Bank Transfer</option></select></div>
+        <div class="col-6"><label class="form-label">Paid By</label>
+          <select class="form-select" name="paid_by">
+            <option value="">Company</option><option>TSR</option><option>TRR</option></select></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+        <div class="col-12"><small class="text-muted" id="typeHint">
+          Advance, meals and deductions reduce the net payable.</small></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveComponent()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
 </div>
 {% endblock %}
 
@@ -47,21 +116,68 @@ document.getElementById("fMonth").value = thisMonth();
 async function loadSalaries() {
   const month = document.getElementById("fMonth").value;
   setLoading("salaryBody");
+  setLoading("vehicleBody");
   try {
     const data = await api(`/api/salaries?month=${month}`);
     setText("stCount", data.rows.length);
+    setText("stGross", fmtMoney(data.total_gross));
+    setText("stAdvance", fmtMoney(data.total_advance));
     setText("stNet", fmtMoney(data.total_net));
-    setText("stAdvance", fmtMoney(data.rows.reduce((a, r) => a + r.advance, 0)));
     renderRows("salaryBody", data.rows, r => `<tr>
-      <td><a href="/drivers/${r.driver_id}" class="fw-bold text-decoration-none" style="color:var(--gold)">${esc(r.driver_name)}</a></td>
-      <td>${esc(r.employee_type || "Driver")}</td>
-      <td class="text-end">${fmtMoney(r.salary)}</td>
+      <td><a href="/drivers/details/${r.driver_id}" class="fw-bold text-decoration-none"
+             style="color:var(--gold)">${esc(r.driver_name)}</a></td>
+      <td>${esc(r.employee_type)}</td>
+      <td class="text-end">${r.effective_days || "—"}</td>
+      <td class="text-end fw-bold">${fmtMoney(r.gross)}</td>
+      <td class="text-end text-success">${fmtMoney(r.incentive)}</td>
+      <td class="text-end">${fmtMoney(r.salary_paid)}</td>
       <td class="text-end text-danger">${fmtMoney(r.advance)}</td>
       <td class="text-end">${fmtMoney(r.meals)}</td>
-      <td class="text-end text-success">${fmtMoney(r.incentive)}</td>
       <td class="text-end text-danger">${fmtMoney(r.deduction)}</td>
       <td class="text-end fw-bold">${fmtMoney(r.net_payable)}</td>
-    </tr>`, "No active employees");
+      <td><a class="btn-icon-sm" href="/drivers/details/${r.driver_id}" title="Details">
+        <i class="bi bi-eye"></i></a></td>
+    </tr>`, "No employees for this month");
+
+    renderRows("vehicleBody", data.vehicles, v => `<tr>
+      <td class="fw-bold">${esc(v.vehicle_number)}</td>
+      <td class="text-end">${fmtMoney(v.monthly_salary)}</td>
+      <td class="text-end">${v.days}</td>
+      <td class="text-end">${v.driver_count}</td>
+      <td class="text-end fw-bold">${fmtMoney(v.amount)}</td>
+    </tr>`, "No vehicle salary accrued - set Monthly Salary on each vehicle");
+  } catch (e) { toastError(e); }
+}
+
+function toggleIncentive(value) {
+  document.getElementById("typeHint").textContent = value === "Incentive"
+    ? "Incentive is added to the net payable (one entry per employee per month)."
+    : "Advance, meals and deductions reduce the net payable.";
+}
+
+function openComponent() {
+  const form = document.getElementById("componentForm");
+  fillForm(form, null);
+  form.for_month.value = document.getElementById("fMonth").value;
+  form.expense_date.value = today();
+  openModal("componentModal");
+}
+
+async function saveComponent() {
+  const data = formData(document.getElementById("componentForm"));
+  if (!data.driver_id) return toast("Choose an employee", "error");
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  try {
+    if (data.sub_category === "Incentive") {
+      await api("/api/incentive", { method: "POST", body: {
+        driver_id: data.driver_id, for_month: data.for_month,
+        amount: data.amount, description: data.description } });
+    } else {
+      await api("/api/salaries/component", { method: "POST", body: data });
+    }
+    closeModal("componentModal");
+    toast("Entry saved");
+    loadSalaries();
   } catch (e) { toastError(e); }
 }
 
@@ -70,5 +186,10 @@ function exportExcel() {
 }
 
 loadSalaries();
+api("/api/drivers").then(rows => fillSelect(
+  document.querySelector('#componentForm [name="driver_id"]'),
+  rows.filter(d => (d.status || "Active") === "Active"),
+  { value: d => d.driver_id, label: d => `${d.driver_name} (${d.employee_type || "Driver"})` }
+)).catch(() => {});
 </script>
 {% endblock %}

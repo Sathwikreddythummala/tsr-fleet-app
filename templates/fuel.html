@@ -4,56 +4,79 @@
 
 {% block content %}
 <div class="page-head">
-  <div><h4>Fuel &amp; Diesel Entries</h4><div class="sub">Litres, amounts, kilometre readings and stations</div></div>
-  <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Fuel Entry</button>
+  <div><h4>Fuel &amp; Diesel</h4>
+    <div class="sub">Entries, mileage readings and the station credit (Katha) ledger</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-ghost" onclick="exportFile('excel')"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
+    <button class="btn btn-ghost" onclick="exportFile('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+    <button class="btn btn-gold admin-only" onclick="openAdd()"><i class="bi bi-plus-lg me-1"></i> Add Entry</button>
+  </div>
 </div>
 
 <div class="row g-3 mb-3">
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-droplet-half"></i></div>
-    <div><div class="stat-label">Total Litres (filtered)</div><div class="stat-value" id="stLitres">—</div></div>
+    <div><div class="stat-label">Litres (filtered)</div><div class="stat-value" id="stLitres">—</div></div>
   </div></div>
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
-    <div><div class="stat-label">Total Amount (filtered)</div><div class="stat-value text-danger" id="stAmount">—</div></div>
+    <div><div class="stat-label">Amount (filtered)</div><div class="stat-value text-danger" id="stAmount">—</div></div>
   </div></div>
-  <div class="col-md-4"><div class="glass-card stat-card animate-in">
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
     <div class="stat-icon"><i class="bi bi-list-check"></i></div>
     <div><div class="stat-label">Entries</div><div class="stat-value" id="stCount">—</div></div>
   </div></div>
-</div>
-
-<div class="glass-card filter-bar mb-3 animate-in">
-  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom" onchange="loadFuel()"></div>
-  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo" onchange="loadFuel()"></div>
-  <div><label class="form-label">Vehicle</label>
-    <div id="fVehicle"></div></div>
-  <div><label class="form-label">Driver</label>
-    <div id="fDriver"></div></div>
-  <div><label class="form-label">Fuel Type</label>
-    <div id="fType"></div></div>
-</div>
-
-<div class="row g-3 mb-4">
-  <div class="col-lg-6"><div class="glass-card animate-in">
-    <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Monthly Fuel Spend</div>
-    <div id="chartMonthly"><div class="spinner-gold"></div></div>
-  </div></div>
-  <div class="col-lg-6"><div class="glass-card animate-in">
-    <div class="section-title"><i class="bi bi-truck-front"></i> Vehicle-wise Fuel</div>
-    <div id="chartVehicle"><div class="spinner-gold"></div></div>
+  <div class="col-6 col-md-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-journal-bookmark"></i></div>
+    <div><div class="stat-label">Credit Outstanding</div><div class="stat-value text-danger" id="stCredit">—</div></div>
   </div></div>
 </div>
 
-<div class="glass-card table-card animate-in">
-  <div class="table-responsive">
-    <table class="table table-premium">
-      <thead><tr>
-        <th>Date</th><th>Vehicle</th><th>Driver</th><th>Type</th><th class="text-end">Litres</th>
-        <th class="text-end">Amount</th><th class="text-end">KM</th><th>Station</th><th>Mode</th><th>Actions</th>
-      </tr></thead>
-      <tbody id="fuelBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
-    </table>
+<ul class="nav nav-pills mb-3 animate-in">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabEntries">All Entries</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabCredit" onclick="loadCredit()">Credit Ledger (Katha)</button></li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tabEntries">
+    <div class="glass-card filter-bar mb-3 animate-in">
+      <div><label class="form-label">Month</label>
+        <input type="month" class="form-control" id="fMonth"></div>
+      <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+      <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+      <div><label class="form-label">Vehicle</label><div id="fVehicle"></div></div>
+      <div><label class="form-label">Driver</label><div id="fDriver"></div></div>
+      <div><label class="form-label">Fuel Type</label><div id="fType"></div></div>
+      <div><label class="form-label">Payment</label><div id="fStatus"></div></div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6"><div class="glass-card animate-in">
+        <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Monthly Fuel Spend</div>
+        <div id="chartMonthly"><div class="spinner-gold"></div></div>
+      </div></div>
+      <div class="col-lg-6"><div class="glass-card animate-in">
+        <div class="section-title"><i class="bi bi-truck-front"></i> Vehicle-wise Fuel</div>
+        <div id="chartVehicle"><div class="spinner-gold"></div></div>
+      </div></div>
+    </div>
+
+    <div class="glass-card table-card animate-in">
+      <div class="table-responsive">
+        <table class="table table-premium">
+          <thead><tr>
+            <th>Date</th><th>Vehicle</th><th>Driver</th><th>Type</th>
+            <th class="text-end">Litres</th><th class="text-end">Amount</th>
+            <th class="text-end">KM</th><th>Station</th><th>Payment</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="fuelBody"><tr><td colspan="10"><div class="spinner-gold"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="tabCredit">
+    <div class="row g-3" id="creditCards"><div class="spinner-gold"></div></div>
   </div>
 </div>
 
@@ -71,18 +94,24 @@
           <select class="form-select" name="driver_name"><option value="">— None —</option></select></div>
         <div class="col-md-3"><label class="form-label">Fuel Type</label>
           <select class="form-select" name="fuel_type">
-            <option>Diesel</option><option>Petrol</option><option>CNG</option></select></div>
+            {% for t in fuel_types %}<option>{{ t }}</option>{% endfor %}</select></div>
         <div class="col-md-3"><label class="form-label">Litres *</label>
           <input type="number" step="0.01" class="form-control" name="litres"></div>
         <div class="col-md-3"><label class="form-label">Amount *</label>
           <input type="number" step="0.01" class="form-control" name="amount"></div>
         <div class="col-md-3"><label class="form-label">Kilometre</label>
           <input type="number" class="form-control" name="kilometre"></div>
-        <div class="col-md-6"><label class="form-label">Fuel Station</label>
-          <input class="form-control" name="fuel_station"></div>
-        <div class="col-md-6"><label class="form-label">Payment Mode</label>
+        <div class="col-md-4"><label class="form-label">Fuel Station</label>
+          <input class="form-control" name="fuel_station" id="stationInput" list="stationList">
+          <datalist id="stationList"></datalist></div>
+        <div class="col-md-4"><label class="form-label">Payment Mode</label>
           <select class="form-select" name="payment_mode">
-            <option>Cash</option><option>UPI</option><option>Fuel Card</option><option>Credit</option></select></div>
+            <option>Cash</option><option>UPI</option><option>Fuel Card</option><option>Bank Transfer</option></select></div>
+        <div class="col-md-4"><label class="form-label">Payment Status</label>
+          <select class="form-select" name="payment_status" onchange="onStatusChange(this.value)">
+            <option>Paid</option><option value="Unpaid">Unpaid (Katha)</option></select></div>
+        <div class="col-12"><small class="text-muted" id="statusHint">
+          Paid entries are settled. Choose Unpaid to put the amount on the station's Katha.</small></div>
       </form>
     </div>
     <div class="modal-footer">
@@ -99,37 +128,123 @@ let fuelRows = [], editingId = null;
 
 const msVehicle = multiSelect("fVehicle", { placeholder: "All Vehicles", onChange: () => loadFuel() });
 const msDriver = multiSelect("fDriver", { placeholder: "All Drivers", onChange: () => loadFuel() });
-const msType = multiSelect("fType", { placeholder: "All Fuel Types",
-  options: ["Diesel", "Petrol", "CNG"], onChange: () => loadFuel() });
+const msType = multiSelect("fType", { placeholder: "All Types",
+  options: {{ fuel_types | tojson }}, onChange: () => loadFuel() });
+const msStatus = multiSelect("fStatus", { placeholder: "Paid & Unpaid",
+  options: ["Paid", "Unpaid"], onChange: () => loadFuel() });
 
-async function loadFuel() {
-  setLoading("fuelBody");
-  const params = new URLSearchParams({
+function query() {
+  return new URLSearchParams({
+    month: document.getElementById("fMonth").value,
     date_from: document.getElementById("fFrom").value,
     date_to: document.getElementById("fTo").value,
     vehicle: msVehicle.values().join(","),
     driver: msDriver.values().join(","),
     fuel_type: msType.values().join(","),
-  });
+    payment_status: msStatus.values().join(","),
+  }).toString();
+}
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo", onChange: () => loadFuel() });
+
+async function loadFuel() {
+  setLoading("fuelBody");
   try {
-    const data = await api(`/api/fuel?${params}`);
+    const data = await api(`/api/fuel/list?${query()}`);
     fuelRows = data.rows;
     setText("stLitres", fmtNum(data.total_litres) + " L");
     setText("stAmount", fmtMoney(data.total_amount));
     setText("stCount", fmtNum(data.rows.length));
-    renderRows("fuelBody", data.rows, f => `<tr>
-      <td>${fmtDate(f.entry_date)}</td>
-      <td class="fw-bold">${esc(f.vehicle_number || "-")}</td>
-      <td>${esc(f.driver_name || "-")}</td>
-      <td><span class="badge-soft gold">${esc(f.fuel_type || "Diesel")}</span></td>
-      <td class="text-end fw-bold">${fmtNum(f.litres)}</td>
-      <td class="text-end fw-bold">${fmtMoney(f.amount)}</td>
-      <td class="text-end">${esc(f.kilometre || "-")}</td>
-      <td>${esc(f.fuel_station || "-")}</td>
-      <td>${esc(f.payment_mode || "-")}</td>
-      ${actionButtons(f.fuel_id)}
-    </tr>`, "No fuel entries match the filters");
+    setText("stCredit", fmtMoney(data.credit_outstanding));
+    renderRows("fuelBody", data.rows, f => {
+      const unpaid = (f.payment_status || "Paid") === "Unpaid";
+      return `<tr>
+        <td>${fmtDate(f.entry_date)}</td>
+        <td class="fw-bold">${esc(f.vehicle_number || "-")}</td>
+        <td>${esc(f.driver_name || "-")}</td>
+        <td><span class="badge-soft gold">${esc(f.fuel_type || "Diesel")}</span></td>
+        <td class="text-end fw-bold">${fmtNum(f.litres)}</td>
+        <td class="text-end fw-bold">${fmtMoney(f.amount)}</td>
+        <td class="text-end">${esc(f.kilometre || "-")}</td>
+        <td>${esc(f.fuel_station || "-")}</td>
+        <td>${unpaid ? '<span class="katha-tag">KATHA</span>'
+                     : '<span class="badge-soft success">Paid</span>'}</td>
+        <td class="text-nowrap">
+          ${unpaid ? `<button class="btn-icon-sm admin-only" onclick="settleEntry('${f.fuel_id}')"
+              title="Mark paid"><i class="bi bi-check2-circle"></i></button>` : ""}
+          <button class="btn-icon-sm admin-only" onclick="editRecord('${f.fuel_id}')" title="Edit">
+            <i class="bi bi-pencil"></i></button>
+          <button class="btn-icon-sm danger admin-only" onclick="deleteRecord('${f.fuel_id}')" title="Delete">
+            <i class="bi bi-trash"></i></button>
+        </td></tr>`;
+    }, "No fuel entries match the filters");
   } catch (e) { toastError(e); }
+}
+
+async function loadCredit() {
+  const holder = document.getElementById("creditCards");
+  holder.innerHTML = '<div class="spinner-gold"></div>';
+  try {
+    const data = await api("/api/fuel/credit");
+    if (!data.rows.length) {
+      holder.innerHTML = `<div class="col-12"><div class="glass-card empty-state">
+        <i class="bi bi-check2-circle"></i>No outstanding credit — every entry is settled</div></div>`;
+      return;
+    }
+    holder.innerHTML = data.rows.map(g => `
+      <div class="col-lg-6"><div class="glass-card station-card animate-in">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <div class="fw-bold" style="font-size:15px">${esc(g.station)}</div>
+            <small class="text-muted">${g.count} unpaid entries · oldest ${fmtDate(g.oldest)}</small>
+          </div>
+          <div class="text-end">
+            <div class="stat-value text-danger">${fmtMoney(g.amount)}</div>
+            <small class="text-muted">${fmtNum(g.litres)} L</small>
+          </div>
+        </div>
+        <div class="table-responsive" style="max-height:190px;overflow-y:auto">
+          <table class="table table-premium mb-0">
+            <thead><tr><th>Date</th><th>Vehicle</th><th class="text-end">Amount</th><th></th></tr></thead>
+            <tbody>${g.entries.map(e => `<tr>
+              <td>${fmtDate(e.entry_date)}</td>
+              <td>${esc(e.vehicle_number || "-")}</td>
+              <td class="text-end fw-bold">${fmtMoney(e.amount)}</td>
+              <td><button class="btn-icon-sm admin-only" onclick="settleEntry('${e.fuel_id}')"
+                    title="Mark paid"><i class="bi bi-check2-circle"></i></button></td>
+            </tr>`).join("")}</tbody>
+          </table>
+        </div>
+        <button class="btn btn-gold w-100 mt-3 admin-only" onclick="settleStation('${esc(g.station)}')">
+          <i class="bi bi-cash-coin me-1"></i> Settle All (${fmtMoney(g.amount)})</button>
+      </div></div>`).join("");
+  } catch (e) { toastError(e); }
+}
+
+async function settleEntry(fuelId) {
+  if (!confirm("Mark this entry as paid?")) return;
+  try {
+    await api("/api/fuel/settle", { method: "POST", body: { fuel_id: fuelId } });
+    toast("Entry settled");
+    loadFuel(); loadCredit();
+  } catch (e) { toastError(e); }
+}
+
+async function settleStation(station) {
+  if (!confirm(`Settle the entire Katha for ${station}?`)) return;
+  try {
+    const res = await api("/api/fuel/settle", { method: "POST", body: { station } });
+    toast(`${res.settled} entries settled (${fmtMoney(res.amount)})`);
+    loadFuel(); loadCredit();
+  } catch (e) { toastError(e); }
+}
+
+function onStatusChange(value) {
+  const unpaid = value === "Unpaid";
+  document.getElementById("statusHint").textContent = unpaid
+    ? "On Katha — the fuel station is required so the debt has an owner."
+    : "Paid entries are settled. Choose Unpaid to put the amount on the station's Katha.";
+  document.getElementById("stationInput").required = unpaid;
 }
 
 async function loadCharts() {
@@ -137,15 +252,12 @@ async function loadCharts() {
     const s = await api("/api/fuel/stats");
     document.getElementById("chartMonthly").innerHTML = "";
     new ApexCharts(document.getElementById("chartMonthly"), {
-      chart: { type: "area", height: 260, toolbar: { show: false }, fontFamily: "inherit",
-               animations: { enabled: true, speed: 700 } },
+      chart: { type: "area", height: 260, toolbar: { show: false }, fontFamily: "inherit" },
       series: [{ name: "Amount", data: s.monthly_amount }, { name: "Litres", data: s.monthly_litres }],
-      xaxis: { categories: s.months },
-      colors: ["#D4A017", "#F59E0B"],
+      xaxis: { categories: s.months }, colors: ["#FF8F00", "#42A5F5"],
       stroke: { curve: "smooth", width: 3 },
       fill: { type: "gradient", gradient: { opacityFrom: .35, opacityTo: .05 } },
-      dataLabels: { enabled: false },
-      grid: { borderColor: "rgba(212,160,23,.15)" }
+      dataLabels: { enabled: false }, grid: { borderColor: "rgba(212,160,23,.15)" },
     }).render();
 
     const vehicles = Object.entries(s.by_vehicle);
@@ -153,12 +265,13 @@ async function loadCharts() {
     new ApexCharts(document.getElementById("chartVehicle"), {
       chart: { type: "bar", height: 260, toolbar: { show: false }, fontFamily: "inherit" },
       series: [{ name: "Fuel Amount", data: vehicles.map(v => Math.round(v[1])) }],
-      xaxis: { categories: vehicles.map(v => v[0]) },
-      colors: ["#FFC107"],
+      xaxis: { categories: vehicles.map(v => v[0]) }, colors: ["#FFC107"],
       plotOptions: { bar: { horizontal: true, borderRadius: 5 } },
-      dataLabels: { enabled: false },
-      grid: { borderColor: "rgba(212,160,23,.15)" }
+      dataLabels: { enabled: false }, grid: { borderColor: "rgba(212,160,23,.15)" },
     }).render();
+
+    document.getElementById("stationList").innerHTML =
+      (s.stations || []).map(st => `<option value="${esc(st)}">`).join("");
   } catch (e) { /* charts optional */ }
 }
 
@@ -168,6 +281,7 @@ function openAdd() {
   const form = document.getElementById("fuelForm");
   fillForm(form, null);
   form.entry_date.value = today();
+  onStatusChange("Paid");
   openModal("fuelModal");
 }
 
@@ -177,26 +291,40 @@ function editRecord(id) {
   editingId = id;
   document.getElementById("fuelModalTitle").textContent = "Edit Fuel Entry";
   fillForm(document.getElementById("fuelForm"), f);
+  onStatusChange(f.payment_status || "Paid");
   openModal("fuelModal");
 }
 
-async function saveFuel() {
+async function saveFuel(force = false) {
   const data = formData(document.getElementById("fuelForm"));
   if (!data.vehicle_number) return toast("Vehicle is required", "error");
+  if (data.payment_status === "Unpaid" && !data.fuel_station)
+    return toast("Fuel station is required for Katha entries", "error");
+  if (force) data.force = true;
   try {
     if (editingId) await api(`/api/fuel/${editingId}`, { method: "PUT", body: data });
-    else await api("/api/fuel", { method: "POST", body: data });
+    else await api("/api/fuel/add", { method: "POST", body: data });
     closeModal("fuelModal");
     toast(editingId ? "Fuel entry updated" : "Fuel entry added");
-    loadFuel(); loadCharts();
-  } catch (e) { toastError(e); }
+    loadFuel(); loadCharts(); loadCredit();
+  } catch (e) {
+    if (String(e.message).includes("already exists")
+        && confirm("A similar fuel entry already exists. Save anyway?")) {
+      return saveFuel(true);
+    }
+    toastError(e);
+  }
 }
 
 async function deleteRecord(id) {
   if (!confirm("Delete this fuel entry?")) return;
-  try { await api(`/api/fuel/${id}`, { method: "DELETE" }); toast("Deleted"); loadFuel(); loadCharts(); }
-  catch (e) { toastError(e); }
+  try {
+    await api(`/api/fuel/${id}`, { method: "DELETE" });
+    toast("Deleted"); loadFuel(); loadCharts(); loadCredit();
+  } catch (e) { toastError(e); }
 }
+
+function exportFile(kind) { window.location.href = `/api/fuel/export/${kind}?${query()}`; }
 
 loadFuel();
 loadCharts();
