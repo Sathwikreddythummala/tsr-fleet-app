@@ -7,7 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import settings
-from routes import (access, attendance, auth, billing, company, dashboard,
+from routes import (access, attendance, auth, bank, billing, company, dashboard,
                     documents, driver_portal, drivers, emi, expenses, fuel, gst,
                     house, income, mithi, outside, purse, reports, vehicles,
                     vendors)
@@ -105,8 +105,8 @@ async def asset_links():
 
 
 for module in (auth, dashboard, vehicles, drivers, attendance, expenses, house,
-               fuel, vendors, billing, income, purse, emi, gst, mithi, outside,
-               reports, documents, company, access, driver_portal):
+               fuel, vendors, billing, income, purse, bank, emi, gst, mithi,
+               outside, reports, documents, company, access, driver_portal):
     app.include_router(module.router)
 
 

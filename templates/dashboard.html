@@ -67,6 +67,14 @@
     <div class="stat-icon"><i class="bi bi-journal-bookmark"></i></div>
     <div><div class="stat-label">Fuel Credit (Katha)</div><div class="stat-value text-danger" id="stKatha">—</div></div>
   </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-bank2"></i></div>
+    <div><div class="stat-label">Bank Balance</div><div class="stat-value" id="stBankBal">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4 col-xl-3"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="stat-label">Cash in Hand</div><div class="stat-value text-success" id="stCashHand">—</div></div>
+  </div></div>
 </div>
 
 <div class="row g-3 mb-4">
@@ -112,6 +120,10 @@ async function loadDashboard() {
     setText("stHouse", fmtMoney(s.house_expense_month));
     setText("stTripIncome", fmtMoney(s.trip_income));
     setText("stKatha", fmtMoney(s.fuel_credit));
+    api("/api/bank/summary").then(b => {
+      setText("stBankBal", fmtMoney(b.total_bank));
+      setText("stCashHand", fmtMoney(b.cash_in_hand));
+    }).catch(() => {});
 
     renderRows("recentBody", s.recent_expenses, e => `<tr>
       <td>${fmtDate(e.expense_date)}</td>

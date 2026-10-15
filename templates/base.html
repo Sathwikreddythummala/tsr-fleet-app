@@ -9,7 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link rel="icon" href="/company/logo">
-  <link href="/static/css/style.css?v=12" rel="stylesheet">
+  <link href="/static/css/style.css?v=13" rel="stylesheet">
   {% block head %}{% endblock %}
 </head>
 <body class="{% if role == 'viewer' %}role-viewer{% endif %}">
@@ -42,6 +42,7 @@
       <a href="/house" class="{% if path.startswith('/house') %}active{% endif %}"><i class="bi bi-house-heart-fill"></i> House Expenses</a>
       <a href="/income" class="{% if path.startswith('/income') %}active{% endif %}"><i class="bi bi-cash-coin"></i> Income</a>
       <a href="/purse" class="{% if path.startswith('/purse') %}active{% endif %}"><i class="bi bi-cash-stack"></i> Purse</a>
+      <a href="/bank" class="{% if path.startswith('/bank') %}active{% endif %}"><i class="bi bi-bank2"></i> Bank &amp; Cash</a>
 
       <div class="nav-group">Billing &amp; Finance</div>
       <a href="/vendors" class="{% if path.startswith('/vendors') %}active{% endif %}"><i class="bi bi-building"></i> Customers</a>
@@ -105,7 +106,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
-<script src="/static/js/app.js?v=12"></script>
+<script src="/static/js/app.js?v=13"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

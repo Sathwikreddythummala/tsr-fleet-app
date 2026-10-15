@@ -4,6 +4,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+from routes import bank
 from services import sheets_service as ss
 from utils import duplicate_check
 from utils.permissions import require_editor, require_view
@@ -87,6 +88,7 @@ async def add_expense(request: Request, user=Depends(require_editor)):
     data.setdefault("for_month", (data.get("expense_date") or "")[:7] or ss.this_month())
     expense_id = ss.add_record("expenses", data)
     _sync_purse(expense_id, data)
+    bank.sync_expense(expense_id, data)
     ss.add_audit_log("Create", "Expenses", expense_id,
                      f"{data.get('category')} ₹{data.get('amount')}", user["email"])
     return {"success": True, "id": expense_id}
@@ -102,6 +104,8 @@ async def update_expense(expense_id: str, request: Request, user=Depends(require
     ss.update_record("expenses", expense_id, data)
     _remove_purse_link(expense_id)
     _sync_purse(expense_id, data)
+    bank.clear_expense(expense_id)
+    bank.sync_expense(expense_id, data)
     ss.add_audit_log("Update", "Expenses", expense_id, "Updated expense", user["email"])
     return {"success": True}
 
@@ -112,6 +116,7 @@ async def delete_expense(expense_id: str, user=Depends(require_editor)):
         raise HTTPException(status_code=404, detail="Expense not found")
     ss.delete_record("expenses", expense_id)
     _remove_purse_link(expense_id)
+    bank.clear_expense(expense_id)
     ss.add_audit_log("Delete", "Expenses", expense_id, "Deleted expense", user["email"])
     return {"success": True}
 

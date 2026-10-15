@@ -68,8 +68,25 @@ TABLES = {
         "columns": [
             "expense_id", "expense_date", "for_month", "expense_for",
             "vehicle_number", "driver_name", "category", "sub_category",
-            "description", "amount", "payment_mode", "paid_by",
+            "description", "amount", "payment_mode", "paid_by", "bank_account",
             "created_date", "updated_date",
+        ],
+    },
+    "bankaccounts": {
+        "id": "account_id", "prefix": "BANK",
+        "columns": [
+            "account_id", "bank_name", "account_label", "account_number",
+            "ifsc_code", "branch", "account_type", "opening_balance",
+            "opening_date", "colour", "status", "notes",
+            "created_date", "updated_date",
+        ],
+    },
+    "banktransactions": {
+        "id": "txn_id", "prefix": "BTX",
+        "columns": [
+            "txn_id", "txn_date", "account_id", "bank_name", "type", "amount",
+            "category", "description", "reference_number", "payment_mode",
+            "to_account_id", "holder", "reference_id", "created_date",
         ],
     },
     "fuelentries": {
@@ -223,6 +240,8 @@ CREATE TABLE IF NOT EXISTS document_files (
 # ------------------------------------------------------------------ init/cache
 
 _cache = {}
+CACHE_TTL_SECONDS = 5  # short-lived: keeps a page's many reads cheap without
+                       # ever serving balances that another worker has changed
 
 
 def clear_cache(table=None):
@@ -318,9 +337,11 @@ gen_id = generate_id  # blueprint alias
 
 def get_all_records(table, use_cache=True):
     if use_cache and table in _cache:
-        return _cache[table]
+        cached_at, rows = _cache[table]
+        if (datetime.now(IST) - cached_at).total_seconds() < CACHE_TTL_SECONDS:
+            return rows
     rows = fetch_all(f"SELECT * FROM {table}")
-    _cache[table] = rows
+    _cache[table] = (datetime.now(IST), rows)
     return rows
 
 

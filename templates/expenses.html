@@ -90,6 +90,10 @@
         <div class="col-md-4"><label class="form-label">Paid By</label>
           <select class="form-select" name="paid_by">
             <option value="">Company</option><option>TSR</option><option>TRR</option></select></div>
+        <div class="col-md-6"><label class="form-label">Paid From Bank Account</label>
+          <select class="form-select" name="bank_account">
+            <option value="">— Not from a bank (cash / purse) —</option></select>
+          <small class="text-muted">Choosing an account debits it automatically.</small></div>
       </form>
     </div>
     <div class="modal-footer">
@@ -220,5 +224,10 @@ loadExpenses();
 loadVehicleOptions(document.querySelector('#expenseForm [name="vehicle_number"]'));
 loadDriverOptions(document.querySelector('#expenseForm [name="driver_name"]'));
 api("/api/vehicles").then(v => msVehicle.setOptions(v.map(x => x.vehicle_number))).catch(() => {});
+api("/api/bank/accounts").then(d => fillSelect(
+  document.querySelector('#expenseForm [name="bank_account"]'), d.rows,
+  { value: a => a.account_id,
+    label: a => `${a.bank_name}${a.account_label ? " · " + a.account_label : ""}` }
+)).catch(() => {});
 </script>
 {% endblock %}

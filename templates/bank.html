@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% block title %}Bank Accounts{% endblock %}
+{% block page_title %}Bank &amp; Cash{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h4>Bank Accounts &amp; Cash</h4>
+    <div class="sub">Live balances, withdrawals to cash, deposits and transfers</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-ghost admin-only" onclick="openCashOpening()">
+      <i class="bi bi-cash me-1"></i> Opening Cash</button>
+    <button class="btn btn-ghost admin-only" onclick="openTxn('Withdrawal')">
+      <i class="bi bi-arrow-down-circle me-1"></i> Withdraw Cash</button>
+    <button class="btn btn-gold admin-only" onclick="openAccount()">
+      <i class="bi bi-plus-lg me-1"></i> Add Account</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-bank2"></i></div>
+    <div><div class="stat-label">Total in Banks</div><div class="stat-value" id="stBank">—</div></div>
+  </div></div>
+  <div class="col-6 col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div><div class="stat-label">Cash in Hand</div><div class="stat-value text-success" id="stCash">—</div></div>
+  </div></div>
+  <div class="col-12 col-md-4"><div class="glass-card stat-card animate-in">
+    <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+    <div><div class="stat-label">Total Funds</div><div class="stat-value" id="stTotal">—</div></div>
+  </div></div>
+</div>
+
+<div class="section-title"><i class="bi bi-credit-card-2-front"></i> Accounts</div>
+<div class="row g-3 mb-4" id="accountCards"><div class="spinner-gold"></div></div>
+
+<div class="glass-card filter-bar mb-3 animate-in">
+  <div><label class="form-label">Month</label>
+    <input type="month" class="form-control" id="fMonth"></div>
+  <div><label class="form-label">From</label><input type="date" class="form-control" id="fFrom"></div>
+  <div><label class="form-label">To</label><input type="date" class="form-control" id="fTo"></div>
+  <div><label class="form-label">Account</label><div id="fAccount"></div></div>
+  <div><label class="form-label">Type</label><div id="fType"></div></div>
+  <div class="flex-grow-1"><label class="form-label">Search</label>
+    <input class="form-control" id="fSearch" placeholder="Description, reference..." oninput="debouncedLoad()"></div>
+  <div class="align-self-end"><button class="btn btn-ghost" onclick="exportExcel()">
+    <i class="bi bi-file-earmark-excel me-1"></i> Excel</button></div>
+</div>
+
+<div class="glass-card table-card animate-in">
+  <div class="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap gap-2">
+    <div class="section-title mb-0"><i class="bi bi-list-ul"></i> Transactions</div>
+    <div class="d-flex gap-3" style="font-size:12.5px">
+      <span>Money In: <b class="text-success" id="stIn">—</b></span>
+      <span>Money Out: <b class="text-danger" id="stOut">—</b></span>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-premium">
+      <thead><tr>
+        <th>Date</th><th>Bank</th><th>Type</th><th>Category</th><th>Description</th>
+        <th>Reference</th><th class="text-end">Money In</th><th class="text-end">Money Out</th><th></th>
+      </tr></thead>
+      <tbody id="txnBody"><tr><td colspan="9"><div class="spinner-gold"></div></td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- account modal -->
+<div class="modal fade" id="accountModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="accountModalTitle">Add Bank Account</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="accountForm" class="row g-3">
+        <div class="col-md-5"><label class="form-label">Bank Name *</label>
+          <input class="form-control" name="bank_name" list="bankList" required
+                 oninput="previewColour()">
+          <datalist id="bankList">
+            {% for b in suggested_banks %}<option>{{ b }}</option>{% endfor %}
+          </datalist></div>
+        <div class="col-md-4"><label class="form-label">Label</label>
+          <input class="form-control" name="account_label" placeholder="Current A/c, Loan A/c..."></div>
+        <div class="col-md-3"><label class="form-label">Card Colour</label>
+          <input type="color" class="form-control form-control-color w-100" name="colour" id="colourInput"></div>
+        <div class="col-md-4"><label class="form-label">Account Number</label>
+          <input class="form-control" name="account_number"></div>
+        <div class="col-md-4"><label class="form-label">IFSC Code</label>
+          <input class="form-control" name="ifsc_code" style="text-transform:uppercase"></div>
+        <div class="col-md-4"><label class="form-label">Branch</label>
+          <input class="form-control" name="branch"></div>
+        <div class="col-md-4"><label class="form-label">Account Type</label>
+          <select class="form-select" name="account_type">
+            <option>Current</option><option>Savings</option><option>OD / CC</option><option>Loan</option></select></div>
+        <div class="col-md-4"><label class="form-label">Opening Balance *</label>
+          <input type="number" step="0.01" class="form-control" name="opening_balance"></div>
+        <div class="col-md-4"><label class="form-label">As On Date</label>
+          <input type="date" class="form-control" name="opening_date"></div>
+        <div class="col-md-4"><label class="form-label">Status</label>
+          <select class="form-select" name="status"><option>Active</option><option>Inactive</option></select></div>
+        <div class="col-md-8"><label class="form-label">Notes</label>
+          <input class="form-control" name="notes"></div>
+        <div class="col-12"><small class="text-muted">
+          The opening balance is the money sitting in this account the day you start
+          using the app. Every credit and debit after that is added on top.</small></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveAccount()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- transaction modal -->
+<div class="modal fade" id="txnModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="txnModalTitle">Add Transaction</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="txnForm" class="row g-3">
+        <div class="col-12"><label class="form-label">Type *</label>
+          <select class="form-select" name="type" onchange="onTypeChange(this.value)">
+            <option value="Credit">Credit — money received into the bank</option>
+            <option value="Debit">Debit — money paid out of the bank</option>
+            <option value="Withdrawal">Withdrawal — cash taken out (adds to cash in hand)</option>
+            <option value="Deposit">Deposit — cash paid into the bank</option>
+            <option value="Transfer">Transfer — bank to bank</option>
+          </select></div>
+        <div class="col-md-7"><label class="form-label" id="accountLabel">Account *</label>
+          <select class="form-select" name="account_id"><option value="">— Select —</option></select></div>
+        <div class="col-md-5"><label class="form-label">Date</label>
+          <input type="date" class="form-control" name="txn_date"></div>
+        <div class="col-12" id="toAccountRow" style="display:none">
+          <label class="form-label">To Account *</label>
+          <select class="form-select" name="to_account_id"><option value="">— Select —</option></select></div>
+        <div class="col-12" id="holderRow" style="display:none">
+          <label class="form-label">Hand the cash to</label>
+          <select class="form-select" name="holder">
+            <option value="">Company cash in hand</option>
+            <option value="TSR">TSR purse</option>
+            <option value="TRR">TRR purse</option>
+          </select>
+          <small class="text-muted">Choosing a purse credits that holder straight away.</small></div>
+        <div class="col-md-6"><label class="form-label">Amount *</label>
+          <input type="number" step="0.01" class="form-control" name="amount" required></div>
+        <div class="col-md-6"><label class="form-label">Category</label>
+          <input class="form-control" name="category" list="catList">
+          <datalist id="catList">
+            <option>Bill Payment</option><option>Customer Receipt</option>
+            <option>Salary</option><option>EMI</option><option>Fuel</option>
+            <option>Transfer</option><option>Charges</option><option>Other</option>
+          </datalist></div>
+        <div class="col-md-6"><label class="form-label">Reference Number</label>
+          <input class="form-control" name="reference_number" placeholder="UTR / cheque no."></div>
+        <div class="col-md-6"><label class="form-label">Mode</label>
+          <select class="form-select" name="payment_mode">
+            <option>Bank Transfer</option><option>UPI</option><option>Cheque</option>
+            <option>ATM</option><option>Cash</option><option>Auto Debit</option></select></div>
+        <div class="col-12"><label class="form-label">Description</label>
+          <input class="form-control" name="description"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveTxn()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- opening cash modal -->
+<div class="modal fade" id="cashModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Opening Cash in Hand</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <label class="form-label">Cash you are holding right now *</label>
+      <input type="number" step="0.01" class="form-control" id="cashOpening">
+      <small class="text-muted d-block mt-2">
+        Set this once when you start using the app. Afterwards, cash in hand moves
+        on its own: bank withdrawals add to it, deposits, cash given to TSR/TRR and
+        company cash expenses take away from it.</small>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-gold" onclick="saveCashOpening()"><i class="bi bi-check-lg me-1"></i> Save</button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BANK_COLOURS = {
+  "SBI": "#22409A", "State Bank of India": "#22409A",
+  "TGRB": "#0E7A3C", "Telangana Grameena Bank": "#0E7A3C",
+  "South Indian Bank": "#C8102E", "HDFC Bank": "#004C8F",
+  "ICICI Bank": "#AE282E", "Axis Bank": "#97144D",
+  "Kotak Mahindra Bank": "#ED1C24", "Canara Bank": "#0B4EA2",
+  "Union Bank of India": "#E31E24", "Bank of Baroda": "#F7941D",
+  "Punjab National Bank": "#A41E34", "Indian Bank": "#1B3D6D",
+  "Bank of India": "#F58220",
+};
+let accounts = [], editingId = null, cashOpening = 0;
+
+const msAccount = multiSelect("fAccount", { placeholder: "All Accounts",
+  onChange: () => loadTxns() });
+const msType = multiSelect("fType", { placeholder: "All Types",
+  options: ["Credit", "Debit", "Withdrawal", "Deposit", "Transfer Out"],
+  onChange: () => loadTxns() });
+
+linkMonthAndRange({ month: "fMonth", from: "fFrom", to: "fTo",
+                    onChange: () => loadTxns() });
+
+function query() {
+  return new URLSearchParams({
+    month: document.getElementById("fMonth").value,
+    date_from: document.getElementById("fFrom").value,
+    date_to: document.getElementById("fTo").value,
+    account: msAccount.values().join(","),
+    txn_type: msType.values().join(","),
+    search: document.getElementById("fSearch").value,
+  }).toString();
+}
+
+async function loadAccounts() {
+  try {
+    const data = await api("/api/bank/accounts");
+    accounts = data.rows;
+    cashOpening = data.cash.opening;
+    setText("stBank", fmtMoney(data.total_bank));
+    setText("stCash", fmtMoney(data.cash.balance));
+    setText("stTotal", fmtMoney(data.total_with_cash));
+
+    const holder = document.getElementById("accountCards");
+    const cards = data.rows.map(a => `
+      <div class="col-md-6 col-xl-4"><div class="bank-card animate-in slide-up"
+           style="--bank:${esc(a.colour)}">
+        <div class="bank-card-top">
+          <div>
+            <div class="bank-name">${esc(a.bank_name)}</div>
+            <div class="bank-sub">${esc(a.account_label || a.account_type || "")}</div>
+          </div>
+          <i class="bi bi-bank2 bank-mark"></i>
+        </div>
+        <div class="bank-number">${a.account_number
+            ? "•••• " + esc(String(a.account_number).slice(-4)) : "No account number"}</div>
+        <div class="bank-balance-label">Available balance</div>
+        <div class="bank-balance ${a.balance < 0 ? "negative" : ""}">${fmtMoney(a.balance)}</div>
+        <div class="bank-foot">
+          <span><i class="bi bi-arrow-down-left"></i> ${fmtMoney(a.month_in)}</span>
+          <span><i class="bi bi-arrow-up-right"></i> ${fmtMoney(a.month_out)}</span>
+          <span class="ms-auto admin-only">
+            <button class="bank-btn" onclick="openTxn('Credit','${a.account_id}')" title="Add transaction">
+              <i class="bi bi-plus-lg"></i></button>
+            <button class="bank-btn" onclick="editAccount('${a.account_id}')" title="Edit">
+              <i class="bi bi-pencil"></i></button>
+            <button class="bank-btn" onclick="deleteAccount('${a.account_id}')" title="Delete">
+              <i class="bi bi-trash"></i></button>
+          </span>
+        </div>
+      </div></div>`).join("");
+
+    const cash = data.cash;
+    const cashCard = `
+      <div class="col-md-6 col-xl-4"><div class="bank-card cash-card animate-in slide-up">
+        <div class="bank-card-top">
+          <div><div class="bank-name">Cash in Hand</div>
+            <div class="bank-sub">Company cash</div></div>
+          <i class="bi bi-cash-stack bank-mark"></i>
+        </div>
+        <div class="bank-number">Opening ${fmtMoney(cash.opening)}</div>
+        <div class="bank-balance-label">Available cash</div>
+        <div class="bank-balance ${cash.balance < 0 ? "negative" : ""}">${fmtMoney(cash.balance)}</div>
+        <div class="bank-foot">
+          <span><i class="bi bi-arrow-down-left"></i> ${fmtMoney(cash.withdrawn)} drawn</span>
+          <span><i class="bi bi-arrow-up-right"></i> ${fmtMoney(cash.to_purse + cash.cash_spent)} out</span>
+        </div>
+      </div></div>`;
+
+    holder.innerHTML = (cards || "") + cashCard +
+      (data.rows.length ? "" : `<div class="col-12"><div class="glass-card empty-state">
+        <i class="bi bi-bank"></i>No bank accounts yet — add SBI, TGRB or South Indian Bank
+        with its opening balance to begin</div></div>`);
+
+    const options = data.rows.map(a => ({
+      id: a.account_id, label: `${a.bank_name}${a.account_label ? " · " + a.account_label : ""}`,
+    }));
+    msAccount.setOptions(options.map(o => o.label));
+    [document.querySelector('#txnForm [name="account_id"]'),
+     document.querySelector('#txnForm [name="to_account_id"]')].forEach(sel =>
+      fillSelect(sel, options, { value: o => o.id, label: o => o.label }));
+  } catch (e) { toastError(e); }
+}
+
+async function loadTxns() {
+  setLoading("txnBody");
+  try {
+    // the account filter shows labels, so map them back to ids
+    const labels = msAccount.values();
+    const ids = accounts.filter(a =>
+      labels.includes(`${a.bank_name}${a.account_label ? " · " + a.account_label : ""}`)
+    ).map(a => a.account_id);
+    const params = new URLSearchParams(query());
+    params.set("account", ids.join(","));
+
+    const data = await api(`/api/bank/transactions?${params}`);
+    setText("stIn", fmtMoney(data.total_in));
+    setText("stOut", fmtMoney(data.total_out));
+    const IN = ["Credit", "Deposit", "Transfer In", "Opening"];
+    renderRows("txnBody", data.rows, t => {
+      const isIn = IN.includes(t.type);
+      return `<tr>
+        <td>${fmtDate(t.txn_date)}</td>
+        <td class="fw-bold">${esc(t.bank_name || "-")}</td>
+        <td><span class="badge-soft ${isIn ? "success" : "danger"}">${esc(t.type)}</span></td>
+        <td>${esc(t.category || "-")}</td>
+        <td>${esc(t.description || "-")}</td>
+        <td>${esc(t.reference_number || "-")}</td>
+        <td class="text-end fw-bold text-success">${isIn ? fmtMoney(t.amount) : ""}</td>
+        <td class="text-end fw-bold text-danger">${isIn ? "" : fmtMoney(t.amount)}</td>
+        <td>${t.reference_id ? '<span class="badge-soft muted">auto</span>'
+          : `<button class="btn-icon-sm danger admin-only" onclick="deleteTxn('${t.txn_id}')">
+               <i class="bi bi-trash"></i></button>`}</td>
+      </tr>`;
+    }, "No transactions match the filters");
+  } catch (e) { toastError(e); }
+}
+const debouncedLoad = debounce(loadTxns, 350);
+
+/* ------------------------------------------------ accounts */
+function previewColour() {
+  const form = document.getElementById("accountForm");
+  const guess = BANK_COLOURS[form.bank_name.value.trim()];
+  if (guess) document.getElementById("colourInput").value = guess;
+}
+
+function openAccount() {
+  editingId = null;
+  document.getElementById("accountModalTitle").textContent = "Add Bank Account";
+  const form = document.getElementById("accountForm");
+  fillForm(form, null);
+  form.opening_date.value = today();
+  document.getElementById("colourInput").value = "#22409A";
+  openModal("accountModal");
+}
+
+function editAccount(id) {
+  const a = accounts.find(x => x.account_id === id);
+  if (!a) return;
+  editingId = id;
+  document.getElementById("accountModalTitle").textContent = "Edit " + a.bank_name;
+  fillForm(document.getElementById("accountForm"), a);
+  document.getElementById("colourInput").value = a.colour || "#22409A";
+  openModal("accountModal");
+}
+
+async function saveAccount() {
+  const data = formData(document.getElementById("accountForm"));
+  if (!data.bank_name) return toast("Bank name is required", "error");
+  try {
+    if (editingId) await api(`/api/bank/accounts/${editingId}`, { method: "PUT", body: data });
+    else await api("/api/bank/accounts", { method: "POST", body: data });
+    closeModal("accountModal");
+    toast(editingId ? "Account updated" : "Account added");
+    loadAccounts(); loadTxns();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteAccount(id) {
+  const a = accounts.find(x => x.account_id === id);
+  if (!confirm(`Delete ${a ? a.bank_name : "this account"}?`)) return;
+  try {
+    await api(`/api/bank/accounts/${id}`, { method: "DELETE" });
+    toast("Account deleted"); loadAccounts();
+  } catch (e) { toastError(e); }
+}
+
+/* ------------------------------------------------ transactions */
+function onTypeChange(value) {
+  document.getElementById("toAccountRow").style.display = value === "Transfer" ? "block" : "none";
+  document.getElementById("holderRow").style.display = value === "Withdrawal" ? "block" : "none";
+  document.getElementById("accountLabel").textContent =
+    value === "Transfer" ? "From Account *" : "Account *";
+}
+
+function openTxn(type, accountId) {
+  const form = document.getElementById("txnForm");
+  fillForm(form, null);
+  form.type.value = type || "Credit";
+  form.txn_date.value = today();
+  if (accountId) form.account_id.value = accountId;
+  if (type === "Withdrawal") form.category.value = "Cash Withdrawal";
+  document.getElementById("txnModalTitle").textContent =
+    type === "Withdrawal" ? "Withdraw Cash" : "Add Transaction";
+  onTypeChange(form.type.value);
+  openModal("txnModal");
+}
+
+async function saveTxn() {
+  const data = formData(document.getElementById("txnForm"));
+  if (!data.account_id) return toast("Choose an account", "error");
+  if (!Number(data.amount)) return toast("Amount is required", "error");
+  if (data.type === "Transfer" && !data.to_account_id)
+    return toast("Choose the destination account", "error");
+  try {
+    await api("/api/bank/transactions", { method: "POST", body: data });
+    closeModal("txnModal");
+    toast(data.type === "Withdrawal" ? "Cash withdrawn — added to cash in hand"
+                                     : "Transaction saved");
+    loadAccounts(); loadTxns();
+  } catch (e) { toastError(e); }
+}
+
+async function deleteTxn(id) {
+  if (!confirm("Delete this transaction?")) return;
+  try {
+    await api(`/api/bank/transactions/${id}`, { method: "DELETE" });
+    toast("Deleted"); loadAccounts(); loadTxns();
+  } catch (e) { toastError(e); }
+}
+
+/* ------------------------------------------------ opening cash */
+function openCashOpening() {
+  document.getElementById("cashOpening").value = cashOpening || "";
+  openModal("cashModal");
+}
+
+async function saveCashOpening() {
+  const amount = document.getElementById("cashOpening").value;
+  try {
+    await api("/api/bank/cash-opening", { method: "POST", body: { amount } });
+    closeModal("cashModal");
+    toast("Opening cash saved");
+    loadAccounts();
+  } catch (e) { toastError(e); }
+}
+
+function exportExcel() { window.location.href = `/api/bank/export/excel?${query()}`; }
+
+loadAccounts().then(loadTxns);
+</script>
+{% endblock %}
