@@ -809,6 +809,16 @@ body.sidebar-collapsed .sidebar { transform: translateX(-100%); }
 }
 .bank-btn:hover { background: rgba(255, 255, 255, .34); }
 
+/* ------------------------------------------------ clickable person card */
+.person-card { cursor: pointer; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.person-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--accent-dark);
+}
+/* buttons inside keep their own cursor and do not look clickable-as-card */
+.person-card .btn { cursor: pointer; }
+
 /* ------------------------------------------------ katha / credit */
 .katha-tag {
   display: inline-block;

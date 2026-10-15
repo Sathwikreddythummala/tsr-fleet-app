@@ -126,6 +126,13 @@
 <script>
 let persons = [], editingId = null, currentStatus = "Active";
 
+function monthLabel(month) {
+  if (!month) return "—";
+  const d = new Date(month + "-01");
+  return isNaN(d) ? month
+    : d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+}
+
 function syncInterestMonth() {
   const form = document.getElementById("personForm");
   // Mithi is collected in arrears, so the first collection is the month
@@ -166,7 +173,8 @@ async function loadPersons() {
     }
     holder.innerHTML = data.rows.map(p => {
       const closed = (p.status || "Active") === "Closed";
-      return `<div class="col-md-6 col-xl-4"><div class="glass-card animate-in slide-up h-100">
+      return `<div class="col-md-6 col-xl-4"><div class="glass-card animate-in slide-up h-100 person-card"
+           onclick="showDetail('${p.mithi_person_id}')" title="Open payment history">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
             <div class="fw-bold" style="font-size:15px">${esc(p.person_name)}</div>
@@ -185,21 +193,25 @@ async function loadPersons() {
         <div class="d-flex justify-content-between mb-1" style="font-size:12.5px">
           <span class="text-muted">Given / first Mithi</span>
           <span>${fmtDate(p.given_date || p.start_date)} ·
-            <b>${esc(p.interest_start_month || p.accrual_from || "—")}</b></span>
+            <b>${esc(monthLabel(p.interest_start_month || p.accrual_from))}</b></span>
         </div>
+        ${p.mithi_pending > 0 ? `
         <div class="d-flex justify-content-between mb-1" style="font-size:13px">
-          <span class="text-muted">Collected / Pending</span>
-          <span><b class="text-success">${fmtMoney(p.total_paid)}</b> / <b class="text-danger">${fmtMoney(p.mithi_pending)}</b></span>
-        </div>
+          <span class="text-muted">Mithi due</span>
+          <b class="text-danger">${fmtMoney(p.mithi_pending)}</b>
+        </div>` : ""}
         <div class="d-flex justify-content-between mb-3" style="font-size:13px">
-          <span class="text-muted">This Month</span>
-          ${p.current_month_paid ? '<span class="badge-soft success">Paid</span>'
-                                 : '<span class="badge-soft warning">Pending</span>'}
+          <span class="text-muted">This month</span>
+          ${p.months_due === 0
+            ? '<span class="badge-soft muted">Not started</span>'
+            : p.current_month_paid ? '<span class="badge-soft success">Paid</span>'
+                                   : '<span class="badge-soft warning">Pending</span>'}
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-eye"></i> View</button>
-          ${closed ? "" : `
+        <div class="d-flex gap-2 flex-wrap" onclick="event.stopPropagation()">
+          ${closed ? `
+          <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-clock-history"></i> History</button>` : `
           <button class="btn btn-gold btn-sm admin-only" onclick="openPayment('${p.mithi_person_id}')"><i class="bi bi-cash"></i> Pay Mithi</button>
+          <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-clock-history"></i> History</button>
           <button class="btn btn-ghost btn-sm admin-only" onclick="editPerson('${p.mithi_person_id}')"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-ghost btn-sm admin-only" onclick="closePerson('${p.mithi_person_id}')" title="Main amount returned"><i class="bi bi-check2-circle"></i> Close</button>`}
         </div>
@@ -286,7 +298,7 @@ async function showDetail(id) {
         <div class="col-6"><span class="text-muted">Aadhaar:</span> ${esc(p.aadhaar_number || "—")}</div>
         <div class="col-6"><span class="text-muted">PAN:</span> ${esc(p.pan_number || "—")}</div>
         <div class="col-6"><span class="text-muted">Amount given:</span> ${esc(p.given_date || p.start_date || "—")}</div>
-        <div class="col-6"><span class="text-muted">Mithi from:</span> ${esc(p.interest_start_month || p.accrual_from || "—")}</div>
+        <div class="col-6"><span class="text-muted">First Mithi:</span> ${esc(monthLabel(p.interest_start_month || p.accrual_from))}</div>
         <div class="col-6"><span class="text-muted">Months counted:</span> ${p.months_due || 0}</div>
         <div class="col-12"><span class="text-muted">Address:</span> ${esc(p.address || "—")}</div>
       </div>
@@ -302,11 +314,29 @@ async function showDetail(id) {
           <div><div class="fw-bold" style="font-size:13px;color:var(--text)">${esc(d.document_type)}</div>
           <small class="text-muted">${esc(d.file_name)}</small></div></a></div>`).join("")
         : '<div class="col-12 text-muted" style="font-size:13px">No documents uploaded</div>'}</div>
-      <div class="section-title"><i class="bi bi-clock-history"></i> Payment History</div>
+      <div class="row g-2 mb-3">
+        <div class="col-4"><div class="glass-card p-2 text-center">
+          <div class="stat-label">Collected</div>
+          <div class="fw-bold text-success">${fmtMoney(p.total_paid)}</div></div></div>
+        <div class="col-4"><div class="glass-card p-2 text-center">
+          <div class="stat-label">Pending</div>
+          <div class="fw-bold ${p.mithi_pending > 0 ? "text-danger" : "text-success"}">
+            ${p.mithi_pending > 0 ? fmtMoney(p.mithi_pending) : "Nil"}</div></div></div>
+        <div class="col-4"><div class="glass-card p-2 text-center">
+          <div class="stat-label">Months counted</div>
+          <div class="fw-bold">${p.months_due || 0}</div></div></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="section-title mb-0"><i class="bi bi-clock-history"></i> Payment History
+          <span class="text-muted" style="font-weight:600">(${data.payments.length})</span></div>
+        ${(p.status || "Active") === "Closed" ? "" : `
+        <button class="btn btn-gold btn-sm admin-only" onclick="closeModal('detailModal');openPayment('${id}')">
+          <i class="bi bi-cash me-1"></i> Pay Mithi</button>`}
+      </div>
       <div class="table-responsive"><table class="table table-premium">
         <thead><tr><th>Month</th><th>Date</th><th class="text-end">Amount</th><th>Mode</th><th></th></tr></thead>
         <tbody>${data.payments.length ? data.payments.map(pay => `<tr>
-          <td class="fw-bold">${esc(pay.payment_month)}</td>
+          <td class="fw-bold">${esc(monthLabel(pay.payment_month))}</td>
           <td>${fmtDate(pay.payment_date)}</td>
           <td class="text-end fw-bold">${fmtMoney(pay.mithi_amount)}</td>
           <td>${esc(pay.payment_mode || "-")}</td>
