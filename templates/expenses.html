@@ -78,7 +78,8 @@
           <select class="form-select" name="category" onchange="onCategoryChange(this.value)">
             {% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></div>
         <div class="col-md-6"><label class="form-label">Sub Category</label>
-          <select class="form-select" name="sub_category"><option value="">— None —</option></select></div>
+          <select class="form-select" name="sub_category"><option value="">— None —</option></select>
+          <small class="text-muted" id="subHint"></small></div>
         <div class="col-12"><label class="form-label">Description</label>
           <input class="form-control" name="description"></div>
         <div class="col-md-4"><label class="form-label">Amount *</label>
@@ -168,6 +169,12 @@ function onCategoryChange(cat) {
   const list = SUBCATS[cat] || [];
   sub.innerHTML = '<option value="">— None —</option>' +
     list.map(s => `<option>${s}</option>`).join("");
+  const hint = document.getElementById("subHint");
+  if (hint) {
+    hint.textContent = ["Driver Expense", "Helper Expense"].includes(cat)
+      ? "Salary, Advance, Meals and Deductions reduce the net payable on the Salaries page."
+      : "";
+  }
 }
 function onExpenseForChange(val) {
   if (val === "House Expense") {

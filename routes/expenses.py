@@ -23,8 +23,11 @@ HOUSE_SUBCATEGORIES = ["Rent", "Electricity", "Groceries", "Repairs", "Water",
 # per-category subcategories for a fleet/vehicle maintenance business
 SUBCATEGORIES = {
     "Fuel": ["Diesel", "Petrol", "CNG", "AdBlue", "Other"],
-    "Driver Expense": ["Daily Bata", "Food", "Accommodation", "Advance",
-                       "Medical", "Mobile Recharge", "Other"],
+    # the first four are the salary components the salary engine reads
+    # (routes/drivers.py COMPONENTS) - keep the names in step
+    "Driver Expense": ["Salary", "Advance", "Meals", "Deductions",
+                       "Daily Bata", "Accommodation", "Medical",
+                       "Mobile Recharge", "Other"],
     "Tyres": ["New Tyre", "Retreading", "Puncture Repair", "Wheel Alignment",
               "Wheel Balancing", "Tube/Flap", "Other"],
     "Maintenance": ["General Service", "Engine Oil Change", "Oil/Air Filter",
@@ -42,7 +45,7 @@ SUBCATEGORIES = {
     "Accident": ["Accident Repair", "Towing", "Third Party Payment",
                  "Legal/FIR Expense", "Other"],
     "Penalty": ["Traffic Challan", "Overload Fine", "RTO Fine", "Other"],
-    "Helper Expense": ["Salary", "Food", "Advance", "Other"],
+    "Helper Expense": ["Salary", "Advance", "Meals", "Deductions", "Other"],
     "Office Expense": ["Rent", "Electricity", "Internet/Phone", "Stationery",
                        "Software", "Staff Welfare", "Travel", "Other"],
     "House Expense": HOUSE_SUBCATEGORIES,
