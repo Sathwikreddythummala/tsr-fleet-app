@@ -211,12 +211,18 @@ def _with_stats(person, payments):
         year, month = accrual
         months_due = max(0, (end.year - year) * 12 + (end.month - month) + 1)
     expected = months_due * monthly
+    pending = max(0.0, expected - total_paid)
+    # how many monthly instalments the pending amount works out to
+    months_pending = round(pending / monthly, 2) if monthly > 0 else 0
+    if months_pending == int(months_pending):
+        months_pending = int(months_pending)
     row.update({
+        "months_pending": months_pending,
         "paid_months": sorted({p.get("payment_month") for p in own if p.get("payment_month")}),
         "months_due": months_due,
         "accrual_from": f"{accrual[0]:04d}-{accrual[1]:02d}" if accrual else "",
         "total_paid": round(total_paid, 2),
-        "mithi_pending": round(max(0.0, expected - total_paid), 2),
+        "mithi_pending": round(pending, 2),
         "main_pending": 0.0 if (person.get("main_amount_returned") or "").lower() == "yes"
         else ss.to_float(person.get("main_amount")),
         "current_month_paid": ss.this_month() in

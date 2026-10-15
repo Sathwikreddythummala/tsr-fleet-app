@@ -96,7 +96,7 @@
 <!-- payment modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
   <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Add Mithi Payment</h5>
+    <div class="modal-header"><h5 class="modal-title">Collect Mithi</h5>
       <button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <form id="paymentForm" class="row g-3">
@@ -116,7 +116,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
-      <button class="btn btn-gold" onclick="savePayment()"><i class="bi bi-check-lg me-1"></i> Save Payment</button>
+      <button class="btn btn-gold" onclick="savePayment()"><i class="bi bi-check-lg me-1"></i> Save Collection</button>
     </div>
   </div></div>
 </div>
@@ -184,7 +184,7 @@ async function loadPersons() {
         </div>
         <div class="d-flex justify-content-between mb-1" style="font-size:13px">
           <span class="text-muted">Main Amount</span>
-          <b class="${closed ? "text-success" : "text-danger"}">${fmtMoney(p.main_amount)}${closed ? " ✓ returned" : " pending"}</b>
+          <b class="${closed ? "text-success" : "text-danger"}">${fmtMoney(p.main_amount)}${closed ? " ✓ returned" : ""}</b>
         </div>
         <div class="d-flex justify-content-between mb-1" style="font-size:13px">
           <span class="text-muted">Monthly Mithi (₹${esc(p.mithi_rate)})</span>
@@ -197,7 +197,8 @@ async function loadPersons() {
         </div>
         ${p.mithi_pending > 0 ? `
         <div class="d-flex justify-content-between mb-1" style="font-size:13px">
-          <span class="text-muted">Mithi due</span>
+          <span class="text-muted">Mithi due
+            <span class="text-danger">(${p.months_pending} ${p.months_pending == 1 ? "month" : "months"})</span></span>
           <b class="text-danger">${fmtMoney(p.mithi_pending)}</b>
         </div>` : ""}
         <div class="d-flex justify-content-between mb-3" style="font-size:13px">
@@ -210,7 +211,7 @@ async function loadPersons() {
         <div class="d-flex gap-2 flex-wrap" onclick="event.stopPropagation()">
           ${closed ? `
           <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-clock-history"></i> History</button>` : `
-          <button class="btn btn-gold btn-sm admin-only" onclick="openPayment('${p.mithi_person_id}')"><i class="bi bi-cash"></i> Pay Mithi</button>
+          <button class="btn btn-gold btn-sm admin-only" onclick="openPayment('${p.mithi_person_id}')"><i class="bi bi-cash"></i> Collect Mithi</button>
           <button class="btn btn-ghost btn-sm" onclick="showDetail('${p.mithi_person_id}')"><i class="bi bi-clock-history"></i> History</button>
           <button class="btn btn-ghost btn-sm admin-only" onclick="editPerson('${p.mithi_person_id}')"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-ghost btn-sm admin-only" onclick="closePerson('${p.mithi_person_id}')" title="Main amount returned"><i class="bi bi-check2-circle"></i> Close</button>`}
@@ -279,7 +280,7 @@ async function savePayment() {
   try {
     await api("/api/mithi/payments", { method: "POST", body: data });
     closeModal("paymentModal");
-    toast("Mithi payment added");
+    toast("Mithi collected");
     loadPersons();
   } catch (e) { toastError(e); }
 }
@@ -331,7 +332,7 @@ async function showDetail(id) {
           <span class="text-muted" style="font-weight:600">(${data.payments.length})</span></div>
         ${(p.status || "Active") === "Closed" ? "" : `
         <button class="btn btn-gold btn-sm admin-only" onclick="closeModal('detailModal');openPayment('${id}')">
-          <i class="bi bi-cash me-1"></i> Pay Mithi</button>`}
+          <i class="bi bi-cash me-1"></i> Collect Mithi</button>`}
       </div>
       <div class="table-responsive"><table class="table table-premium">
         <thead><tr><th>Month</th><th>Date</th><th class="text-end">Amount</th><th>Mode</th><th></th></tr></thead>
@@ -347,10 +348,10 @@ async function showDetail(id) {
 }
 
 async function deletePayment(paymentId, personId) {
-  if (!confirm("Delete this Mithi payment?")) return;
+  if (!confirm("Delete this Mithi collection?")) return;
   try {
     await api(`/api/mithi/payments/${paymentId}`, { method: "DELETE" });
-    toast("Payment deleted");
+    toast("Collection deleted");
     showDetail(personId);
     loadPersons();
   } catch (e) { toastError(e); }
