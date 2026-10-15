@@ -30,8 +30,7 @@
 
 <div class="d-flex flex-wrap gap-2 align-items-center mb-3 animate-in">
   <ul class="nav nav-pills" id="statusTabs">
-    <li class="nav-item"><button class="nav-link active" data-status="" onclick="setTab(this)">All</button></li>
-    <li class="nav-item"><button class="nav-link" data-status="Active" onclick="setTab(this)">Active</button></li>
+    <li class="nav-item"><button class="nav-link active" data-status="Active" onclick="setTab(this)">Active</button></li>
     <li class="nav-item"><button class="nav-link" data-status="Closed" onclick="setTab(this)">Closed</button></li>
   </ul>
   <input class="form-control ms-auto" id="fSearch" style="max-width:260px"
@@ -121,7 +120,7 @@
 
 {% block scripts %}
 <script>
-let persons = [], editingId = null, currentStatus = "";
+let persons = [], editingId = null, currentStatus = "Active";
 
 function previewMithi() {
   const form = document.getElementById("personForm");

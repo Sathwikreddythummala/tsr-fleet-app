@@ -25,25 +25,29 @@ async def mithi_page(request: Request, user=Depends(require_view)):
 async def list_persons(status: str = "", search: str = "",
                        user=Depends(require_view)):
     payments = ss.get_all_records("mithipayments")
-    rows = []
-    for person in ss.get_all_records("mithipersons"):
-        if status and (person.get("status") or "Active") != status:
-            continue
-        if search:
-            q = search.lower()
-            hay = f"{person.get('person_name', '')} {person.get('mobile_number', '')}".lower()
-            if q not in hay:
-                continue
-        rows.append(_with_stats(person, payments))
-    rows.sort(key=lambda p: (p.get("status") or "Active", p.get("person_name") or ""))
-    active = [p for p in rows if p.get("status") != "Closed"]
+    everyone = [_with_stats(p, payments) for p in ss.get_all_records("mithipersons")]
+
+    rows = everyone
+    if status:
+        rows = [p for p in rows if (p.get("status") or "Active") == status]
+    if search:
+        q = search.lower()
+        rows = [p for p in rows
+                if q in f"{p.get('person_name', '')} "
+                        f"{p.get('mobile_number', '')}".lower()]
+    rows = sorted(rows, key=lambda p: (p.get("status") or "Active",
+                                       (p.get("person_name") or "").lower()))
+
+    # the summary describes the whole book, not just the visible tab
+    active = [p for p in everyone if (p.get("status") or "Active") != "Closed"]
     return {
         "rows": rows,
+        "shown": len(rows),
         "active_count": len(active),
-        "closed_count": len(rows) - len(active),
-        "total_main_pending": round(sum(p["main_pending"] for p in rows), 2),
-        "total_collected": round(sum(p["total_paid"] for p in rows), 2),
-        "total_mithi_pending": round(sum(p["mithi_pending"] for p in rows), 2),
+        "closed_count": len(everyone) - len(active),
+        "total_main_pending": round(sum(p["main_pending"] for p in everyone), 2),
+        "total_collected": round(sum(p["total_paid"] for p in everyone), 2),
+        "total_mithi_pending": round(sum(p["mithi_pending"] for p in everyone), 2),
     }
 
 
