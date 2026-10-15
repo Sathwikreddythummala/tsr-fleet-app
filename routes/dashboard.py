@@ -66,13 +66,14 @@ async def dashboard_stats(user=Depends(require_view)):
     active_mithi = [m for m in mithi_persons if (m.get("status") or "Active") != "Closed"]
     pending_mithi = pending_main = 0.0
     now = datetime.now(ss.IST).replace(tzinfo=None)
+    from routes.mithi import accrual_start
     for person in active_mithi:
         pending_main += ss.to_float(person.get("main_amount"))
         monthly = ss.to_float(person.get("monthly_mithi_amount"))
-        start = ss.parse_date(person.get("start_date"))
-        if start and monthly:
-            months_due = max(0, (now.year - start.year) * 12
-                             + (now.month - start.month) + 1)
+        accrual = accrual_start(person)
+        if accrual and monthly:
+            year, month = accrual
+            months_due = max(0, (now.year - year) * 12 + (now.month - month) + 1)
             paid = sum(ss.to_float(p.get("mithi_amount")) for p in mithi_payments
                        if p.get("mithi_person_id") == person.get("mithi_person_id"))
             pending_mithi += max(0.0, months_due * monthly - paid)

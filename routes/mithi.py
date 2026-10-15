@@ -75,7 +75,14 @@ async def add_person(request: Request, user=Depends(require_editor)):
     if main <= 0 or rate <= 0:
         raise HTTPException(status_code=400, detail="Main amount and Mithi rate are required")
     data["monthly_mithi_amount"] = round(main * rate / 100, 2)
-    data.setdefault("start_date", ss.today_str())
+    # the money-given date anchors everything else when it is left blank
+    data.setdefault("given_date", data.get("start_date") or ss.today_str())
+    data.setdefault("start_date", data["given_date"])
+    if not data.get("interest_start_month"):
+        given = _parse_date(data["given_date"])
+        if given:
+            year, month = _shift(given.year, given.month, 1)
+            data["interest_start_month"] = f"{year:04d}-{month:02d}"
     data.setdefault("status", "Active")
     data.setdefault("main_amount_returned", "No")
     person_id = ss.add_record("mithipersons", data)
@@ -196,16 +203,18 @@ def _with_stats(person, payments):
     monthly = ss.to_float(person.get("monthly_mithi_amount"))
     total_paid = sum(ss.to_float(p.get("mithi_amount")) for p in own)
     months_due = 0
-    start = _parse_date(person.get("start_date"))
+    accrual = accrual_start(person)
     end = datetime.now()
     if person.get("status") == "Closed":
         end = _parse_date(person.get("returned_date")) or end
-    if start:
-        months_due = max(0, (end.year - start.year) * 12 + (end.month - start.month) + 1)
+    if accrual:
+        year, month = accrual
+        months_due = max(0, (end.year - year) * 12 + (end.month - month) + 1)
     expected = months_due * monthly
     row.update({
         "paid_months": sorted({p.get("payment_month") for p in own if p.get("payment_month")}),
         "months_due": months_due,
+        "accrual_from": f"{accrual[0]:04d}-{accrual[1]:02d}" if accrual else "",
         "total_paid": round(total_paid, 2),
         "mithi_pending": round(max(0.0, expected - total_paid), 2),
         "main_pending": 0.0 if (person.get("main_amount_returned") or "").lower() == "yes"
@@ -214,6 +223,32 @@ def _with_stats(person, payments):
         {p.get("payment_month") for p in own},
     })
     return row
+
+
+def _shift(year, month, delta):
+    idx = year * 12 + (month - 1) + delta
+    return idx // 12, idx % 12 + 1
+
+
+def accrual_start(person):
+    """(year, month) of the FIRST Mithi collection.
+
+    Mithi is collected in arrears: an amount handed over on 1 January is
+    first collected on 1 February, so the month the money is given is not
+    itself due. An explicitly recorded starting month wins; otherwise it
+    is the month after the amount was given.
+    """
+    month = (person.get("interest_start_month") or "").strip()[:7]
+    if len(month) == 7 and month[4] == "-":
+        try:
+            return int(month[:4]), int(month[5:7])
+        except ValueError:
+            pass
+    for field in ("given_date", "start_date"):
+        parsed = _parse_date(person.get(field))
+        if parsed:
+            return _shift(parsed.year, parsed.month, 1)
+    return None
 
 
 def _parse_date(value):

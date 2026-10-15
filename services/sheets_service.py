@@ -177,7 +177,8 @@ TABLES = {
         "columns": [
             "mithi_person_id", "person_name", "mobile_number", "alternate_mobile",
             "address", "aadhaar_number", "pan_number", "main_amount", "mithi_rate",
-            "monthly_mithi_amount", "start_date", "main_amount_returned",
+            "monthly_mithi_amount", "start_date", "given_date",
+            "interest_start_month", "main_amount_returned",
             "returned_date", "status", "notes", "created_date", "updated_date",
         ],
     },

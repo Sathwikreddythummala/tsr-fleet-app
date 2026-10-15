@@ -63,8 +63,12 @@
         <div class="col-md-4"><label class="form-label">Mithi Rate (₹ per 100/month) *</label>
           <input type="number" step="0.25" min="0.25" class="form-control" name="mithi_rate"
                  value="2" placeholder="e.g. 2 or 3" oninput="previewMithi()"></div>
-        <div class="col-md-4"><label class="form-label">Start Date</label>
-          <input type="date" class="form-control" name="start_date"></div>
+        <div class="col-md-4"><label class="form-label">Amount Given Date</label>
+          <input type="date" class="form-control" name="given_date" onchange="syncInterestMonth()"></div>
+        <div class="col-md-4"><label class="form-label">First Mithi Month</label>
+          <input type="month" class="form-control" name="interest_start_month">
+          <small class="text-muted">Month of the first collection — normally the
+            month after the amount is given</small></div>
         <div class="col-12"><label class="form-label">Notes</label>
           <input class="form-control" name="notes"></div>
         <div class="col-12"><div class="glass-card p-3" style="background:rgba(255,213,79,.18)">
@@ -122,6 +126,15 @@
 <script>
 let persons = [], editingId = null, currentStatus = "Active";
 
+function syncInterestMonth() {
+  const form = document.getElementById("personForm");
+  // Mithi is collected in arrears, so the first collection is the month
+  // after the amount is given. Never overwrite a month already chosen.
+  if (form.given_date.value && !form.interest_start_month.value) {
+    form.interest_start_month.value = shiftMonthStr(form.given_date.value.slice(0, 7), 1);
+  }
+}
+
 function previewMithi() {
   const form = document.getElementById("personForm");
   const main = Number(form.main_amount.value) || 0;
@@ -169,6 +182,11 @@ async function loadPersons() {
           <span class="text-muted">Monthly Mithi (₹${esc(p.mithi_rate)})</span>
           <span class="badge-soft gold">${fmtMoney(p.monthly_mithi_amount)}</span>
         </div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:12.5px">
+          <span class="text-muted">Given / first Mithi</span>
+          <span>${fmtDate(p.given_date || p.start_date)} ·
+            <b>${esc(p.interest_start_month || p.accrual_from || "—")}</b></span>
+        </div>
         <div class="d-flex justify-content-between mb-1" style="font-size:13px">
           <span class="text-muted">Collected / Pending</span>
           <span><b class="text-success">${fmtMoney(p.total_paid)}</b> / <b class="text-danger">${fmtMoney(p.mithi_pending)}</b></span>
@@ -194,8 +212,10 @@ const debouncedLoad = debounce(loadPersons, 350);
 function openAddPerson() {
   editingId = null;
   document.getElementById("personModalTitle").textContent = "Add Mithi Person";
-  fillForm(document.getElementById("personForm"), null);
-  document.querySelector('#personForm [name="start_date"]').value = today();
+  const form = document.getElementById("personForm");
+  fillForm(form, null);
+  form.given_date.value = today();
+  form.interest_start_month.value = shiftMonthStr(thisMonth(), 1);
   previewMithi();
   openModal("personModal");
 }
@@ -265,7 +285,9 @@ async function showDetail(id) {
         <div class="col-6"><span class="text-muted">Mobile:</span> ${esc(p.mobile_number || "—")}</div>
         <div class="col-6"><span class="text-muted">Aadhaar:</span> ${esc(p.aadhaar_number || "—")}</div>
         <div class="col-6"><span class="text-muted">PAN:</span> ${esc(p.pan_number || "—")}</div>
-        <div class="col-6"><span class="text-muted">Start:</span> ${esc(p.start_date || "—")}</div>
+        <div class="col-6"><span class="text-muted">Amount given:</span> ${esc(p.given_date || p.start_date || "—")}</div>
+        <div class="col-6"><span class="text-muted">Mithi from:</span> ${esc(p.interest_start_month || p.accrual_from || "—")}</div>
+        <div class="col-6"><span class="text-muted">Months counted:</span> ${p.months_due || 0}</div>
         <div class="col-12"><span class="text-muted">Address:</span> ${esc(p.address || "—")}</div>
       </div>
       <div class="admin-only mb-3 d-flex gap-2 flex-wrap">
